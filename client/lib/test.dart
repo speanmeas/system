@@ -7,6 +7,8 @@ void main() {
 
 /// The application that contains datagrid on it.
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(title: 'Syncfusion DataGrid Demo', theme: ThemeData(useMaterial3: false), home: MyHomePage());
@@ -16,13 +18,13 @@ class MyApp extends StatelessWidget {
 /// The home page of the application which hosts the datagrid.
 class MyHomePage extends StatefulWidget {
   /// Creates the home page.
-  MyHomePage({Key? key}) : super(key: key);
+  const MyHomePage({super.key});
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  MyHomePageState createState() => MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class MyHomePageState extends State<MyHomePage> {
   List<Employee> employees = <Employee>[];
   late EmployeeDataSource employeeDataSource;
 

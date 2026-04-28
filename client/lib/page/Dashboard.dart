@@ -235,9 +235,9 @@ class _StatCard extends StatelessWidget {
       width: 165,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,7 +282,7 @@ class _RoomCard extends StatelessWidget {
                 Chip(
                   label: Text(room.status.name),
                   side: BorderSide.none,
-                  backgroundColor: color.withOpacity(0.15),
+                  backgroundColor: color.withValues(alpha: 0.15),
                   labelStyle: TextStyle(color: color, fontWeight: FontWeight.w600),
                 ),
                 const Spacer(),
