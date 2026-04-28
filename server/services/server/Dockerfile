@@ -1,6 +1,6 @@
 FROM ubuntu:24.04
 
-
+WORKDIR /server
 
 # set timezone
 RUN ln -snf /usr/share/zoneinfo/Asia/Phnom_Penh /etc/localtime && echo "Asia/Phnom_Penh" > /etc/timezone
@@ -48,7 +48,7 @@ RUN pip install python-telegram-bot
 # RUN pip install paramiko
 
 # copy project files
-COPY . .
+COPY /server /server
 
 
 EXPOSE 8000
