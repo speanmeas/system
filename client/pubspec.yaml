@@ -39,6 +39,10 @@ dependencies:
   package_info_plus: ^10.0.0
   pluto_grid: ^8.1.0
   syncfusion_flutter_datagrid: ^33.1.49
+  dio: ^5.7.0
+  flutter_secure_storage: ^8.1.0
+  image_picker: ^1.2.2
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

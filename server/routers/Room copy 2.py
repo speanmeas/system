@@ -34,95 +34,76 @@ router = APIRouter()
 COLLECTION = "c_room"
 
 
-class Room_Column_ID(BaseModel):
-    id: str | None = Field(None, examples=[None], alias="_id")
+class Room(BaseModel):
 
+    id: str | None = Field(None, examples=[None])
 
-class Room_Column_Data(BaseModel):
-    name: str | None = Field(None, examples=[None])
-    type: str | None = Field(None, examples=[None])
+    room_number: str | None = Field(None, examples=[None])
+    room_type: str | None = Field(None, examples=[None])
     ac_or_fan: str | None = Field(None, examples=[None])
     capacity: int | None = Field(None, examples=[None], ge=0)
     price: float | None = Field(None, examples=[None], ge=0)
     status: str | None = Field(None, examples=[None])
 
-
-class Room_Column_Image(BaseModel):
     image_1: str | None = Field(None, examples=[None])
     image_2: str | None = Field(None, examples=[None])
 
-
-class Room_Column_DateTime(BaseModel):
     created_at: datetime | None = Field(None, examples=[None])
     updated_at: datetime | None = Field(None, examples=[None])
     deleted_at: datetime | None = Field(None, examples=[None])
 
 
-class Room_Column_Sortable(Room_Column_Data, Room_Column_DateTime):
-    pass
+class Room_Refer(BaseModel):
+    column: Literal[*Room.model_fields.keys()] | None = Field(None, examples=[None])
 
 
-##########
-
-
-class Room_Create(Room_Column_Data):
-    pass
-
-
-class Room_Read(BaseModel):
+class Room_Query(BaseModel):
     query: str | None = Field(None, examples=[None])
-    sort_by: Literal[*Room_Column_Sortable.model_fields.keys()] | None = Field(None, examples=[None])
+    sort_by: Literal[*Room.model_fields.keys()] | None = Field(None, examples=[None])
     sort_order: Literal[-1, 1] | None = Field(None, examples=[None])
     offset: int | None = Field(None, examples=[None], ge=0)
     limit: int | None = Field(None, examples=[None], ge=1)
 
 
-class Room_Refer(BaseModel):
-    column: Literal[*Room_Column_Sortable.model_fields.keys()] = Field(..., examples=[None])
-
-
-class Room_Update(Room_Column_Data, Room_Column_ID):
-    pass
-
-
-# special case
-class Room_Upload(BaseModel):
-    id: str = Field(..., examples=[""], alias="_id")
-    column: Literal[*Room_Column_Image.model_fields.keys()] = Field(..., examples=[None])
-    image_data: UploadFile = File(...)
-
-
-class Room_Delete(Room_Column_ID):
-    pass
-
-
 # * OK
 @router.post("/create", deprecated=False)
-async def create(input: Room_Create):
+async def create(
+    room: Room | None,
+):
     try:
 
-        # prepare data
-        data = {
-            **input.model_dump(),
-            **Room_Column_Image().model_dump(),
-            "created_at": datetime.now(),
-            "updated_at": None,
-            "deleted_at": None,
-        }
+        # set default data
+        if not room:
+            room = Room()
+
+        room.created_at = datetime.now()
 
         # insert data
-        await db[COLLECTION].insert_one(data)
+        await db[COLLECTION].insert_one(room.model_dump())
 
-        return R(200, "create successfully")
+        return R(200, "create success")
 
     except Exception:
-        return R(500, "server error")
+        return R(500, "internal server error")
 
 
 # * OK
 @router.post("/read", deprecated=False)
-async def read(input: Room_Read):
+async def read(
+    room: Room_Query | None = Body(None),
+):
     try:
+
+        # set default data
+        if not room:
+            room = Room_Query()
+
+        # validate data
+        query = room.query or ""
+        sort_by = room.sort_by or "created_at"
+        sort_order = room.sort_order or 1
+        offset = room.offset or 0
+        limit = room.limit or 1000
 
         # search
         search = (
@@ -130,88 +111,110 @@ async def read(input: Room_Read):
             .find(
                 {
                     "$and": [
-                        {"$or": [{c: {"$regex": re.escape(input.query or ""), "$options": "i"}} for c in Room_Create.model_fields.keys()]},
+                        {"$or": [{c: {"$regex": re.escape(query), "$options": "i"}} for c in Room_Create.model_fields.keys()]},
                         {"deleted_at": None},
                     ]
                 }
             )
-            .sort(input.sort_by or "created_at", input.sort_order or 1)
-            .skip(input.offset or 0)
-            .limit(input.limit or 1000)
+            .sort(sort_by, sort_order)
+            .skip(offset)
+            .limit(limit)
             .to_list(length=None)
         )
 
         return json.loads(json_util.dumps(search))
 
     except Exception:
-        return R(500, "server error")
+        return R(500, "internal server error")
 
 
 @router.post("/refer", deprecated=False)
-async def refer(data: Room_Refer):
+async def refer(
+    room: Room_Refer | None = Body(None),
+):
     try:
+
+        # set default data
+        if not room:
+            return R(400, "invalid data")
 
         # get distinct values
         value = await db[COLLECTION].distinct(  # distinct = get unique values
-            data.column,
+            room.column,
             {
                 "deleted_at": None,  # eq = equal
-                data.column: {"$ne": None, "$nin": [""]},  # ne = not equal, nin = not in
+                room.column: {"$ne": None, "$nin": [""]},  # ne = not equal, nin = not in
             },
         )
 
-        return value
+        # sort
+        reference = sorted(
+            {v for v in value},
+            key=lambda x: str(x).lower(),
+        )
+
+        return reference
 
     except Exception:
-        return R(500, "server error")
+        return R(500, "internal server error")
 
 
 @router.post("/update", deprecated=False)
-async def update(data: Room_Update):
+async def update():
     try:
-        # validate id
-        if not data.id or data.id == "" or not ObjectId.is_valid(data.id):
-            return R(400, "invalid id")
 
-        # validate room exist
-        exist = await db[COLLECTION].find_one({"_id": ObjectId(data.id)})
-        if not exist:
-            return R(400, "not found")
+        # # set default data
+        # if not data:
+        #     data = {}
 
-        # update room
-        for k, v in data.model_dump().items():
-            if v is not None:
-                print(k, v)
-                await db[COLLECTION].update_one(
-                    {"_id": ObjectId(data.id)},
-                    {
-                        "$set": {
-                            k: v,
-                            "updated_at": datetime.now(),
-                        }
-                    },
-                )
+        # # validate id
+        # if not data.get("id") or data.get("id") == "" or not ObjectId.is_valid(data.get("id")):
+        #     return R(400, "invalid id")
 
-        return R(200, "update success")
+        # # validate columns
+        # for k in data.keys() - ["id"]:
+        #     if k not in COLUMN_STRINGS:
+        #         return R(400, "invalid column name")
+
+        # exist = await db[COLLECTION].find_one({"_id": ObjectId(data.get("id"))})
+        # if not exist:
+        #     return R(400, "room not found")
+
+        # for k in data.keys() - ["id"]:
+        #     if data.get(k) and data.get(k) != "":
+        #         print(k)
+        #         await db[COLLECTION].update_one(
+        #             {"_id": ObjectId(data.get("id"))},
+        #             {"$set": {k: data.get(k), "updated_at": datetime.now()}},
+        #         )
+
+        return 1
     except Exception:
-        return R(500, "server error")
+        return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # * OK
 @router.post("/upload", deprecated=False)
-async def upload_image(data: Room_Upload = Form(...)):
+async def upload_image(
+    data: Optional[dict] = Body(None, examples=[{"id": "", "column": ""}]),
+    image_data: Optional[UploadFile] = File(None),
+):
     try:
 
+        # validate data
+        if not data:
+            return R(400, "invalid data")
+
         # validate id
-        if not data.id or data.id == "" or not ObjectId.is_valid(data.id):
+        if not data.get("id") or data.get("id") == "" or not ObjectId.is_valid(data.get("id")):
             return R(400, "invalid id")
 
         # validate column
-        if not data.column or data.column == "" or data.column not in Room_Column_Image.model_fields.keys():
+        if not data.get("column") or data.get("column") == "" or data.get("column") not in COLUMN_IMAGES:
             return R(400, "invalid column name")
 
         # validate room
-        exist = await db[COLLECTION].find_one({"_id": ObjectId(data.id)})
+        exist = await db[COLLECTION].find_one({"_id": ObjectId(data.get("id"))})
         if not exist:
             return R(404, "room not found")
 
@@ -229,7 +232,7 @@ async def upload_image(data: Room_Upload = Form(...)):
         print(f"image_name : {image_name_new}")
 
         # delete old image file if exists
-        image_name_old = exist.get(data.column)
+        image_name_old = exist.get(data.get("column"))
         if image_name_old:
             if s3.object_exists(MINIO_BUCKET_PUBLIC, image_name_old):
                 s3.remove_object(MINIO_BUCKET_PUBLIC, image_name_old)
@@ -250,43 +253,53 @@ async def upload_image(data: Room_Upload = Form(...)):
 
         # add image name to database
         await db[COLLECTION].update_one(
-            {"_id": ObjectId(data.id)},
-            {"$set": {data.column: image_name_new, "updated_at": datetime.now()}},
+            {"_id": ObjectId(data.get("id"))},
+            {"$set": {data.get("column"): image_name_new, "updated_at": datetime.now()}},
         )
 
         # generate thumbnails
         cvt.to_thumbnail(f"images/{image_name_new}", 100)
         cvt.to_thumbnail(f"images/{image_name_new}", 200)
 
-        return R(200, "uploaded successfully")
+        return 1
     except Exception:
-        return R(500, "server error")
+        return R(500, "internal server error")
 
 
 # * OK
 @router.post("/delete", deprecated=False)
-async def delete_row(data: Room_Delete):
+async def delete_row(
+    data: Optional[dict] = Body(None, examples=[{"id": ""}]),
+):
     try:
 
+        # validate data
+        if not data:
+            return R(400, "data is required")
+
+        # check if id exists in request body
+        if not data.get("id") or data.get("id") == "":
+            return R(400, "id is required")
+
         # check if id is valid
-        if not ObjectId.is_valid(data.id):
+        if not ObjectId.is_valid(data.get("id")):
             return R(400, "invalid id")
 
         # check if id exists in database
-        exist = await db[COLLECTION].find_one({"_id": ObjectId(data.id)})
+        exist = await db[COLLECTION].find_one({"_id": ObjectId(data.get("id"))})
         if not exist:
             return R(400, "room not found")
 
         # soft delete a row
         await db[COLLECTION].update_one(
-            {"_id": ObjectId(data.id)},
+            {"_id": ObjectId(data.get("id"))},
             {"$set": {"deleted_at": datetime.now()}},
         )
 
-        return R(200, "deleted successfully")
+        return R(200, "deleted success")
 
     except Exception:
-        return R(500, "server error")
+        return R(500, "internal server error")
 
 
 if __name__ == "__main__":

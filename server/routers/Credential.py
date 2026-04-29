@@ -421,4 +421,4 @@ for c in [*COLLUMN_STRINGS, *COLLUMN_NUMBERS, *COLLUMN_IMAGES]:
 
 
 if __name__ == "__main__":
-    os.system("python Application.py")
+    os.system("python Main.py")

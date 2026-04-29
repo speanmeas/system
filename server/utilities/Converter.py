@@ -54,5 +54,18 @@ converter = Converter()
 
 # converter.to_thumbnail("assets/logo_itc.png", 200)
 
+
+# convert string to image and image to string
+class Convert_String_To_Image:
+    def __init__(self):
+        pass
+
+    def to_image(self, string: str):
+        return string.encode("utf-8")
+
+    def to_string(self, image: bytes):
+        return image.decode("utf-8")
+
+
 if __name__ == "__main__":
     pass

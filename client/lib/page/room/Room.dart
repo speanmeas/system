@@ -1,10 +1,17 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:speanmeas/page/Room_Add.dart';
-import 'package:speanmeas/page/Room_Column_Visibility.dart';
-import 'package:speanmeas/page/Room_Edit.dart';
-import 'package:speanmeas/page/Room_View.dart';
+import 'package:speanmeas/Environment.dart';
+
+import 'package:speanmeas/utility/Dio.dart';
+import 'package:speanmeas/utility/Secure_Storage.dart';
+
+import 'package:speanmeas/page/room/Room_Add.dart';
+import 'package:speanmeas/page/room/Room_Column_Visibility.dart';
+import 'package:speanmeas/page/room/Room_Edit.dart';
+import 'package:speanmeas/page/room/Room_View.dart';
 import 'package:speanmeas/theme/Theme_Data.dart';
 
 void main() {
@@ -35,6 +42,36 @@ class Room_ extends StatefulWidget {
 class _Room_State extends State<Room_> {
   //
   //
+
+  @override
+  void initState() {
+    super.initState();
+    init();
+  }
+
+  void init() async {
+    await dio
+        .post('/room/read', data: {}) //
+        .then((value) {
+          // print(value.data);
+        });
+
+    Map<String, bool> input = {
+      'Room No.': true, //
+      'Type': true, //
+      'Fan/AC': true, //
+      'Meal': true, //
+      'Capacity': true, //
+      'Price': true, //
+      'Status': true, //
+      'Contact': false,
+    };
+
+    await ss.write(key: 'input', value: json.encode(input));
+
+    var output = await ss.read(key: 'input');
+    print(jsonDecode(output!));
+  }
 
   bool is_admin = true;
 
