@@ -15,12 +15,13 @@ from server.Environment import *
 app = FastAPI(title=TITLE, version="1.0.0", docs_url="/")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-from routers.Room import router as room
-from routers.Pluto import router as pluto
-from routers.Pluto_Sample import router as pluto_sample
+# from server.routers.Pluto import router as pluto
 
-app.include_router(pluto, prefix="/pluto", tags=["PlutoGrid"])
-app.include_router(pluto_sample, prefix="/pluto-sample", tags=["PlutoGrid Sample"])
+# app.include_router(pluto, prefix="/pluto", tags=["PlutoGrid"])
+
+
+from server.routers.Room import router as room
+
 app.include_router(room, prefix="/room", tags=["Room"])
 
 # from routers.Credential import router as credential

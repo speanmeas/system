@@ -119,6 +119,18 @@ async def create(input: Room_Create):
         return R(500, "server error")
 
 
+@router.post("/count")
+async def count():
+    try:
+        # get total count of non-deleted records
+        total = await db[COLLECTION].count_documents({"deleted_at": None})
+
+        return total
+
+    except Exception:
+        return R(500, "server error")
+
+
 # * OK
 @router.post("/read", deprecated=False)
 async def read(input: Room_Read):

@@ -34,9 +34,6 @@ class _RowLazyPaginationScreenState extends State<RowLazyPaginationScreen> {
   // Pass an empty row to the grid initially.
   final List<PlutoRow> rows = [];
 
-  // Collection name to fetch data from
-  final String collection = 'c_room';
-
   @override
   void initState() {
     super.initState();
@@ -75,10 +72,18 @@ class _RowLazyPaginationScreenState extends State<RowLazyPaginationScreen> {
   PlutoRow _buildRowFromApiData(Map<String, dynamic> apiRow, List<PlutoColumn> columnDefs) {
     final cells = <String, PlutoCell>{};
 
+    // Get the _id from apiRow top level (not in cells)
+    final rowId = apiRow['_id']?.toString() ?? '';
+
     final cellsData = apiRow['cells'] as Map<String, dynamic>? ?? {};
     for (final col in columnDefs) {
-      final value = cellsData[col.field];
-      cells[col.field] = PlutoCell(value: value);
+      // For _id column, use the row id
+      if (col.field == '_id') {
+        cells[col.field] = PlutoCell(value: rowId);
+      } else {
+        final value = cellsData[col.field];
+        cells[col.field] = PlutoCell(value: value);
+      }
     }
 
     return PlutoRow(cells: cells);
@@ -86,33 +91,56 @@ class _RowLazyPaginationScreenState extends State<RowLazyPaginationScreen> {
 
   Future<PlutoLazyPaginationResponse> fetch(PlutoLazyPaginationRequest request) async {
     try {
-      // Build API request body
-      final requestBody = {
-        'collection': collection,
-        'page': request.page,
-        'page_size': 100, // Adjust as needed
-        'filters': _convertFiltersToApiFormat(request.filterRows),
-        'sort': _convertSortToApiFormat(request.sortColumn),
-      };
+      // Wait for columns to be loaded first
+      if (columns.isEmpty) {
+        await _loadColumns();
+      }
+
+      // Build API request body (only include non-null values)
+      final requestBody = <String, dynamic>{'page': request.page, 'page_size': 100, 'filters': _convertFiltersToApiFormat(request.filterRows)};
+
+      // Only add sort if not null
+      final sort = _convertSortToApiFormat(request.sortColumn);
+      if (sort != null) {
+        requestBody['sort'] = sort;
+      }
+
+      debugPrint('Fetching page ${request.page} with body: $requestBody');
 
       // Make API call to FastAPI backend using dio
       final response = await dio.post('/pluto/lazy-pagination', data: requestBody);
+
+      debugPrint('Pagination response status: ${response.statusCode}');
+      debugPrint('Pagination response data: ${response.data}');
 
       if (response.statusCode != 200) {
         throw Exception('API Error: ${response.statusCode} - ${response.data}');
       }
 
+      if (response.data == null) {
+        throw Exception('Empty response from server');
+      }
+
       final data = response.data as Map<String, dynamic>;
 
       // Build PlutoRows from API response
-      final List<dynamic> rowsData = data['rows'] ?? [];
+      final rowsData = data['rows'];
+      if (rowsData == null || rowsData is! List) {
+        debugPrint('Invalid rows data format: $rowsData');
+        return PlutoLazyPaginationResponse(totalPage: data['total_page'] ?? 1, rows: []);
+      }
+
       final List<PlutoRow> plutoRows = rowsData.map((rowData) {
-        return _buildRowFromApiData(rowData as Map<String, dynamic>, stateManager.refColumns);
+        if (rowData is! Map<String, dynamic>) {
+          return PlutoRow(cells: {});
+        }
+        return _buildRowFromApiData(rowData, stateManager.refColumns);
       }).toList();
 
       return PlutoLazyPaginationResponse(totalPage: data['total_page'] ?? 1, rows: plutoRows);
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('Error fetching data: $e');
+      debugPrint('Stack trace: $stackTrace');
       // Return empty response on error
       return PlutoLazyPaginationResponse(totalPage: 1, rows: []);
     }
@@ -121,16 +149,39 @@ class _RowLazyPaginationScreenState extends State<RowLazyPaginationScreen> {
   /// Load initial columns from API
   Future<void> _loadColumns() async {
     try {
-      final response = await dio.post('/pluto/columns', data: {'collection': collection});
+      final response = await dio.post('/pluto/columns', data: {});
 
-      if (response.statusCode == 200) {
+      debugPrint('Columns response status: ${response.statusCode}');
+      debugPrint('Columns response data: ${response.data}');
+
+      if (response.statusCode == 200 && response.data != null) {
         final data = response.data as Map<String, dynamic>;
-        final List<dynamic> columnsData = data['columns'] ?? [];
+        final columnsData = data['columns'];
+
+        if (columnsData == null || columnsData is! List) {
+          debugPrint('Invalid columns data format: $columnsData');
+          throw Exception('Invalid columns format');
+        }
+
+        // Add _id column first (hidden, for reference)
+        columns.add(
+          PlutoColumn(
+            title: 'ID',
+            field: '_id',
+            type: PlutoColumnType.text(),
+            enableEditingMode: false,
+            hide: true, // Hide the ID column
+          ),
+        );
 
         for (final colData in columnsData) {
-          final field = colData['field'] as String;
-          final title = colData['title'] as String;
-          final type = colData['type'] as String;
+          if (colData is! Map<String, dynamic>) continue;
+
+          final field = colData['field']?.toString() ?? '';
+          final title = colData['title']?.toString() ?? field;
+          final type = colData['type']?.toString() ?? 'text';
+
+          if (field.isEmpty) continue;
 
           PlutoColumnType columnType;
           switch (type) {
@@ -141,13 +192,13 @@ class _RowLazyPaginationScreenState extends State<RowLazyPaginationScreen> {
               columnType = PlutoColumnType.date();
               break;
             case 'boolean':
-              columnType = PlutoColumnType.text(); // PlutoGrid doesn't have boolean type
+              columnType = PlutoColumnType.text();
               break;
             default:
               columnType = PlutoColumnType.text();
           }
 
-          columns.add(PlutoColumn(title: title, field: field, type: columnType));
+          columns.add(PlutoColumn(title: title, field: field, type: columnType, enableEditingMode: true));
         }
 
         // Refresh grid with loaded columns
@@ -157,19 +208,56 @@ class _RowLazyPaginationScreenState extends State<RowLazyPaginationScreen> {
           _stateManager!.notifyListeners();
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('Error loading columns: $e');
+      debugPrint('Stack trace: $stackTrace');
       // Fallback to default columns if API fails
+      columns.clear();
+      // Add hidden _id column
+      columns.add(PlutoColumn(title: 'ID', field: '_id', type: PlutoColumnType.text(), enableEditingMode: false, hide: true));
       for (int i = 0; i < 5; i++) {
-        columns.add(PlutoColumn(title: 'Column $i', field: i.toString(), type: PlutoColumnType.number()));
+        columns.add(PlutoColumn(title: 'Column $i', field: 'column_$i', type: PlutoColumnType.number(), enableEditingMode: true));
       }
+      if (mounted && _stateManager != null) {
+        _stateManager!.refColumns.clear();
+        _stateManager!.refColumns.addAll(columns);
+        _stateManager!.notifyListeners();
+      }
+    }
+  }
+
+  /// Handle cell value changes and update server
+  Future<void> _onCellChanged(PlutoGridOnChangedEvent event) async {
+    try {
+      final row = event.row;
+      final column = event.column;
+      final value = event.value;
+
+      // Get the _id from the row's cells
+      final rowId = row.cells['_id']?.value?.toString() ?? '';
+      if (rowId.isEmpty) {
+        debugPrint('Cannot update: row has no _id');
+        return;
+      }
+
+      debugPrint('Updating row $rowId, column ${column.field}, value: $value');
+
+      final response = await dio.post('/pluto/update', data: {'_id': rowId, 'field': column.field, 'value': value});
+
+      if (response.statusCode == 200) {
+        debugPrint('Update successful');
+      } else {
+        debugPrint('Update failed: ${response.data}');
+      }
+    } catch (e) {
+      debugPrint('Error updating cell: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Row moving')),
+      appBar: AppBar(title: const Text('Pluto Grid')),
       body: PlutoGrid(
         columns: columns,
         rows: rows,
@@ -180,9 +268,7 @@ class _RowLazyPaginationScreenState extends State<RowLazyPaginationScreen> {
           // Load columns from API first
           await _loadColumns();
         },
-        onChanged: (PlutoGridOnChangedEvent event) {
-          print(event);
-        },
+        onChanged: _onCellChanged,
         configuration: const PlutoGridConfiguration(
           style: PlutoGridStyleConfig(
             rowHeight: 30, // Set row height here

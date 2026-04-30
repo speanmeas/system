@@ -41,7 +41,6 @@ class PlutoSortCondition(BaseModel):
 class PlutoPaginationRequest(BaseModel):
     """Request model for PlutoGrid lazy pagination"""
 
-    collection: str = Field(..., description="MongoDB collection name")
     page: int = Field(1, ge=1, description="Current page number (1-based)")
     page_size: int = Field(1000, ge=1, le=10000, description="Number of rows per page")
     filters: List[PlutoFilterCondition] = Field(default_factory=list, description="Filter conditions")
@@ -79,7 +78,7 @@ class PlutoPaginationResponse(BaseModel):
 
 def build_filter_query(filters: List[PlutoFilterCondition], search_query: Optional[str] = None, searchable_columns: Optional[List[str]] = None) -> Dict:
     """Build MongoDB filter query from PlutoGrid filter conditions"""
-    and_conditions = [{"deleted_at": None}]  # Soft delete filter
+    and_conditions = []  # No soft delete filter for c_sample
 
     # Handle specific column filters
     for f in filters:
@@ -121,7 +120,7 @@ def build_sort_query(sort: Optional[PlutoSortCondition]) -> List[tuple]:
     """Build MongoDB sort query from PlutoGrid sort condition"""
     if sort and sort.column:
         return [(sort.column, 1 if sort.ascending else -1)]
-    return [("created_at", -1)]  # Default sort by created_at desc
+    return [("_id", 1)]  # Default sort by _id since c_sample doesn't have created_at
 
 
 def format_document(doc: Dict, columns: Optional[List[str]] = None) -> Dict[str, Any]:
@@ -160,17 +159,11 @@ async def lazy_pagination(input: PlutoPaginationRequest):
     - Global search
     """
     try:
-        collection = input.collection
-
-        # Validate collection exists (optional security check)
-        # You may want to whitelist allowed collections
-        allowed_collections = ["c_room", "c_booking", "c_customer", "c_product", "c_order", "c_user", "c_category"]
-        if collection not in allowed_collections:
-            return R(400, f"Collection '{collection}' not allowed")
+        collection = "c_sample"
 
         # Build filter query
         # Get sample document to determine searchable columns
-        sample = await db[collection].find_one({"deleted_at": None})
+        sample = await db[collection].find_one({})
         searchable_columns = None
         if sample:
             searchable_columns = [k for k in sample.keys() if k not in ["_id", "deleted_at", "created_at", "updated_at"]]
@@ -208,14 +201,14 @@ async def lazy_pagination(input: PlutoPaginationRequest):
 
 
 @router.post("/columns", deprecated=False)
-async def get_columns(collection: str = Body(..., embed=True)):
+async def get_columns():
     """
-    Get column information for a collection.
+    Get column information for c_sample collection.
     Useful for dynamically generating PlutoGrid columns.
     """
     try:
         # Get sample document
-        sample = await db[collection].find_one({"deleted_at": None})
+        sample = await db["c_sample"].find_one({})
 
         if not sample:
             return {"columns": []}
@@ -257,10 +250,10 @@ async def export_data(input: PlutoPaginationRequest):
     Export all filtered data (not paginated) for download.
     """
     try:
-        collection = input.collection
+        collection = "c_sample"
 
         # Get searchable columns
-        sample = await db[collection].find_one({"deleted_at": None})
+        sample = await db[collection].find_one({})
         searchable_columns = None
         if sample:
             searchable_columns = [k for k in sample.keys() if k not in ["_id", "deleted_at", "created_at", "updated_at"]]
@@ -279,6 +272,34 @@ async def export_data(input: PlutoPaginationRequest):
             "total_count": len(rows),
             "rows": rows,
         }
+
+    except Exception as e:
+        return R(500, f"server error: {str(e)}")
+
+
+class PlutoUpdateRequest(BaseModel):
+    """Request model for updating a cell value"""
+
+    _id: str
+    field: str
+    value: Any
+
+
+@router.post("/update", deprecated=False)
+async def update_cell(input: PlutoUpdateRequest):
+    """
+    Update a single cell value in c_sample collection.
+    """
+    try:
+        from bson.objectid import ObjectId
+
+        # Update the document
+        result = await db["c_sample"].update_one({"_id": ObjectId(input._id)}, {"$set": {input.field: input.value}})
+
+        if result.matched_count == 0:
+            return R(404, "Document not found")
+
+        return R(200, "Update successful")
 
     except Exception as e:
         return R(500, f"server error: {str(e)}")

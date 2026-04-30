@@ -1,15 +1,18 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:pluto_grid/pluto_grid.dart';
 import 'package:provider/provider.dart';
 
 import 'package:speanmeas/Environment.dart';
+import 'package:speanmeas/page/room/Room_Select_Row_Per_Page.dart';
 
 import 'package:speanmeas/utility/Dio.dart';
 import 'package:speanmeas/utility/Secure_Storage.dart';
 
 import 'package:speanmeas/page/room/Room_Add.dart';
-import 'package:speanmeas/page/room/Room_Column_Visibility.dart';
+import 'package:speanmeas/page/room/xRoom_Select_Column_Visibility.dart';
 import 'package:speanmeas/page/room/Room_Edit.dart';
 import 'package:speanmeas/page/room/Room_View.dart';
 import 'package:speanmeas/theme/Theme_Data.dart';
@@ -48,53 +51,169 @@ class _Room_State extends State<Room_> {
 
   // this header
   List<Map<String, dynamic>> headers = [
-    {"key": "_id", "label": "ID", "visible": false},
-    {"key": "name", "label": "Room No.", "visible": true},
-    {"key": "type", "label": "Room Type", "visible": true},
-    {"key": "ac_or_fan", "label": "Fan/AC", "visible": true},
-    {"key": "capacity", "label": "Capacity", "visible": false},
+    {"key": "room_number", "label": "Room No.", "visible": true},
+    {"key": "room_type", "label": "Room Type", "visible": true},
+    {"key": "capacity", "label": "Capacity", "visible": true},
     {"key": "price", "label": "Price", "visible": true},
-    {"key": "status", "label": "Status", "visible": false},
-    {"key": "image_1", "label": "Image 1", "visible": false},
-    {"key": "image_2", "label": "Image 2", "visible": false},
-    {"key": "created_at", "label": "Created At", "visible": true},
-    {"key": "updated_at", "label": "Updated At", "visible": false},
-    {"key": "deleted_at", "label": "Deleted At", "visible": false},
+    {"key": "status", "label": "Status", "visible": true},
   ];
 
   List<Map<String, dynamic>> data = [];
 
+  int total = 0;
+  int currentPage = 1;
+  final int itemsPerPage = 100;
+
+  int get totalPages => (total / itemsPerPage).ceil();
+
+  final List<PlutoColumn> columns = [];
+
+  final List<PlutoRow> rows = [];
+
+  var total_row = 10000;
+  var row_per_page = 100;
+  var page = 1;
+
   String query = "";
   String sort_by = "created_at";
-  int sort_order = -1; // 1 for ascending, -1 for descending
+  int sort_order = 1; // 1 for ascending, -1 for descending
+
+  PlutoGridStateManager? stateManager;
+  bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    init();
+
+    columns.addAll([
+      PlutoColumn(
+        title: 'Room No.', //
+        field: 'room_no',
+        type: PlutoColumnType.text(),
+        enableFilterMenuItem: false,
+        enableSetColumnsMenuItem: false,
+        enableSorting: true,
+        textAlign: PlutoColumnTextAlign.center,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        readOnly: true,
+      ),
+      PlutoColumn(
+        title: 'Room Type', //
+        field: 'room_type',
+        type: PlutoColumnType.text(),
+        enableFilterMenuItem: false,
+        enableSetColumnsMenuItem: false,
+        enableSorting: true,
+        textAlign: PlutoColumnTextAlign.center,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        readOnly: true,
+      ),
+      PlutoColumn(
+        title: 'Action', //
+        field: 'action',
+        type: PlutoColumnType.text(),
+        enableFilterMenuItem: false,
+        enableSetColumnsMenuItem: false,
+        enableSorting: false,
+        enableAutoEditing: false,
+        enableRowDrag: false,
+        enableColumnDrag: false,
+        enableEditingMode: false,
+        enableContextMenu: false,
+        enableDropToResize: false,
+        enableHideColumnMenuItem: false,
+        cellPadding: const EdgeInsets.all(0),
+        // frozen: PlutoColumnFrozen.end,
+        textAlign: PlutoColumnTextAlign.center,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        width: 80,
+        readOnly: true,
+        renderer: (rendererContext) {
+          return Row(
+            children: [
+              IconButton(
+                icon: Icon(Icons.edit_outlined),
+                onPressed: () {
+                  rendererContext.row.cells.forEach((key, cell) {
+                    print('$key: ${cell.value}');
+                  });
+                },
+              ),
+              IconButton(
+                icon: Icon(Icons.delete_outline, color: Colors.red),
+                onPressed: () {
+                  rendererContext.row.cells.forEach((key, cell) {
+                    print('$key: ${cell.value}');
+                  });
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    ]);
+
+    fetchData();
   }
 
-  void init() async {
-    await dio
-        .post(
-          '/room/read',
-          data: {
-            "query": query,
-            "sort_by": sort_by, //
-            "sort_order": sort_order,
-            "limit": 100,
+  Future<void> fetchData() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // Get total count
+      final countResponse = await dio.post('/room/count');
+      print('Count response: $countResponse');
+
+      total_row = countResponse.data is int ? countResponse.data : 0;
+
+      // Fetch paginated data with sorting
+      final response = await dio.post('/room/read', data: {'query': query.isEmpty ? null : query, 'sort_by': sort_by, 'sort_order': sort_order, 'offset': (page - 1) * row_per_page, 'limit': row_per_page});
+
+      final List<dynamic> data = response.data;
+
+      // Map server fields to PlutoGrid fields
+      final newRows = data.map((item) {
+        return PlutoRow(
+          cells: {
+            'room_no': PlutoCell(value: item['room_number'] ?? ''),
+            'room_type': PlutoCell(value: item['room_type'] ?? ''),
+            'action': PlutoCell(value: ''),
+            '_id': PlutoCell(value: item['_id'] ?? ''),
           },
-        ) //
-        .then((r) {
-          setState(() {
-            data = List<Map<String, dynamic>>.from(r.data);
-          });
-        });
+        );
+      }).toList();
+
+      setState(() {
+        rows.clear();
+        rows.addAll(newRows);
+      });
+    } catch (e) {
+      print('Error fetching data: $e');
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
-  double get_width() {
-    return headers.where((e) => e["visible"] == true).length * 120.0;
-  }
+  // void handleSort(PlutoGridOnSortedEvent event) {
+  //   final column = event.column;
+  //   if (column == null) return;
+
+  //   // Map PlutoGrid field to server field names
+  //   final fieldMapping = {'room_no': 'name', 'room_type': 'type'};
+
+  //   final serverField = fieldMapping[column.field] ?? column.field;
+
+  //   setState(() {
+  //     sort_by = serverField;
+  //     sort_order = column.sort == PlutoColumnSort.ascending ? 1 : -1;
+  //   });
+
+  //   fetchData();
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -108,11 +227,12 @@ class _Room_State extends State<Room_> {
               height: 40,
               width: 160,
               child: TextField(
-                onChanged: (v) {
+                onSubmitted: (v) {
                   setState(() {
                     query = v;
+                    page = 1;
                   });
-                  init();
+                  fetchData();
                 },
                 decoration: InputDecoration(
                   hintText: "Search...",
@@ -180,176 +300,137 @@ class _Room_State extends State<Room_> {
         titleSpacing: 0,
         automaticallyImplyLeading: false,
       ),
-      body: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          width: is_admin ? get_width() + 80 : get_width(),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  for (var row in headers)
-                    if (row["visible"])
-                      SizedBox(
-                        height: 40, //
-                        width: column_width, //
-                        child: InkWell(
-                          onTap: () {
-                            setState(() {
-                              sort_by = row["key"];
-                              sort_order = -sort_order;
-                            });
-                            init();
-                          },
-                          child: Row(
-                            children: [
-                              Spacer(),
-                              Text(
-                                row["label"], //
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              SizedBox(width: 4), //
-                              Icon(Icons.unfold_more, size: 16), //
-                              Spacer(),
-                            ],
-                          ),
-                        ),
-                      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: PlutoGrid(
+              columns: columns,
+              rows: rows,
+              onLoaded: (PlutoGridOnLoadedEvent event) {
+                stateManager = event.stateManager;
+              },
+              onSorted: (PlutoGridOnSortedEvent event) {
+                print(event.column);
+                print(event.column.sort);
 
-                  if (is_admin)
-                    SizedBox(
-                      height: 40, //
-                      width: 80, //
-                      child: Row(
-                        children: [
-                          Spacer(),
-                          Text("Actions", style: const TextStyle(fontWeight: FontWeight.bold)),
-                          SizedBox(width: 4), //
-                          Spacer(),
-                        ],
-                      ),
-                    ),
-                ],
+                return;
+              },
+              // onChanged: (PlutoGridOnChangedEvent event) {
+              //   if (event.column.field != null) {
+              //     print(event.column.field);
+              //   }
+              // },
+              // createFooter: (stateManager) {
+              //   return isLoading ? const Center(child: CircularProgressIndicator()) : const SizedBox.shrink();
+              // },
+              configuration: const PlutoGridConfiguration(
+                style: PlutoGridStyleConfig(
+                  rowHeight: 40, // Set row height here
+                  columnHeight: 40,
+                ),
               ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: data.length + 1,
-                  itemBuilder: (context, index) {
-                    if (index < data.length) {
-                      return InkWell(
-                        child: Container(
-                          height: 40, //
-                          decoration: const BoxDecoration(
-                            border: Border(top: BorderSide(color: Colors.black12, width: 2)),
-                          ),
-                          child: Row(
-                            children: [
-                              for (var row in headers)
-                                if (row["visible"])
-                                  Container(
-                                    width: column_width, //
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      "${data[index][row["key"]] ?? ""}", //
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 2,
-                                      softWrap: true,
-                                    ),
-                                  ),
+            ),
+          ),
 
-                              // button edit
-                              if (is_admin)
-                                SizedBox(
-                                  width: 40, //
-                                  child: IconButton(
-                                    icon: const Icon(Icons.edit_outlined), //
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context, //
-                                        MaterialPageRoute(
-                                          builder: (c) {
-                                            return Room_Edit_(
-                                              input: Map<String, String>.from(data[index]), //
-                                            ); //
-                                          },
-                                        ),
-                                      ).then((v) {
-                                        if (v != null) {
-                                          setState(() {});
-                                        }
-                                      });
-                                    },
-                                  ),
-                                ),
+          // Pagination controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(width: 8),
 
-                              // button delete
-                              if (is_admin)
-                                SizedBox(
-                                  width: 40,
-                                  child: IconButton(
-                                    icon: const Icon(Icons.delete_outline),
-                                    onPressed: () {
-                                      setState(() {});
-                                    },
-                                    color: Colors.red,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        onTap: () {
-                          Navigator.push(
-                            context, //
-                            MaterialPageRoute(
-                              builder: (c) {
-                                return Room_View_(
-                                  data: data[index], //
-                                ); //
-                              },
-                            ),
-                          );
-                          print('Tapped on row $index');
+              Text("$row_per_page Rows/Page"),
+
+              Spacer(),
+
+              // row per page button
+              IconButton(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (c) {
+                      return Room_Select_Row_Per_Page_(
+                        input: {
+                          "options": [10, 25, 50, 100],
+                          "selected": 10,
                         },
                       );
-                    } else {
-                      if (index == data.length) {
-                        dio
-                            .post(
-                              '/room/read',
-                              data: {
-                                "query": query,
-                                "sort_by": sort_by, //
-                                "sort_order": sort_order,
-                                "offset": data.length,
-                                "limit": 100,
-                              },
-                            )
-                            .then((r) {
-                              setState(() {
-                                data.addAll(List<Map<String, dynamic>>.from(r.data));
-                              });
-                            });
-                      }
+                    },
+                  ).then((value) {
+                    if (value != null) {
+                      setState(() {
+                        row_per_page = value;
+                        page = 1;
+                      });
+                      fetchData();
                     }
-                    return null;
-                    // else {
+                  });
+                },
+                icon: const Icon(Icons.table_rows_outlined),
+              ),
 
-                    //   return Container(
-                    //     height: 40, //
-                    //     alignment: Alignment.center,
-                    //     decoration: const BoxDecoration(
-                    //       border: Border(top: BorderSide(color: Colors.black12, width: 2)),
-                    //     ),
-                    //     child: Text("Total: ${data.length} Rooms"),
-                    //   );
-                    // }
-                  },
-                ),
+              // first button
+              IconButton(
+                onPressed: page > 1
+                    ? () {
+                        setState(() {
+                          page = 1;
+                        });
+                        fetchData();
+                      }
+                    : null,
+                icon: const Icon(Icons.first_page),
+              ),
+
+              // previous button
+              IconButton(
+                onPressed: page > 1
+                    ? () {
+                        setState(() {
+                          page--;
+                        });
+                        fetchData();
+                      }
+                    : null,
+                icon: const Icon(Icons.chevron_left),
+              ),
+
+              // page dropdown (dropup)
+              OutlinedButton(
+                onPressed: () {},
+                style: ButtonStyle(minimumSize: WidgetStateProperty.all(const Size(60, 40))),
+                child: Text("$page"),
+              ),
+
+              Text(" / ${(total_row / row_per_page).ceil()}"),
+
+              // next button
+              IconButton(
+                onPressed: page < (total_row / row_per_page).ceil()
+                    ? () {
+                        setState(() {
+                          page++;
+                        });
+                        fetchData();
+                      }
+                    : null,
+                icon: const Icon(Icons.chevron_right),
+              ),
+
+              // last button
+              IconButton(
+                onPressed: page < (total_row / row_per_page).ceil()
+                    ? () {
+                        setState(() {
+                          page = (total_row / row_per_page).ceil();
+                        });
+                        fetchData();
+                      }
+                    : null,
+                icon: const Icon(Icons.last_page),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
