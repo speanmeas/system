@@ -19,12 +19,12 @@ from bson import ObjectId, json_util
 from rich import print as pprint
 
 
-from server.Environment import *
-from server.utilities.Response import R
-from server.utilities.Converter import converter as cvt
-from server.utilities.Token import token as tk
-from server.utilities.Storage import storage as s3
-from server.utilities.Database import database as db
+from Environment import *
+from utilities.Response import R
+from utilities.Converter import converter as cvt
+from utilities.Token import token as tk
+from utilities.Storage import storage as s3
+from utilities.Database import database as db
 
 
 router = APIRouter()
@@ -308,4 +308,4 @@ async def delete_row(data: Room_Delete):
 
 
 if __name__ == "__main__":
-    os.system("python server/Main.py")
+    os.system("python Main.py")

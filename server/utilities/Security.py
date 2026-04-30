@@ -6,7 +6,7 @@ sys.path.append(os.getcwd())
 
 
 import hmac
-from server.Environment import *
+from Environment import *
 
 
 class HASH:

@@ -49,7 +49,7 @@ class _RowLazyPaginationScreenState extends State<RowLazyPaginationScreen> {
       return PlutoRow(
         cells: Map.fromEntries(
           c.map((col) {
-            return MapEntry(col.field, PlutoCell(value: Random().nextDouble() * 1000000));
+            return MapEntry(col.field, PlutoCell(value: i));
           }),
         ),
       );
@@ -67,48 +67,12 @@ class _RowLazyPaginationScreenState extends State<RowLazyPaginationScreen> {
   Future<PlutoLazyPaginationResponse> fetch(PlutoLazyPaginationRequest request) async {
     List<PlutoRow> tempList = fakeFetchedRows;
 
-    // If you have a filtering state,
-    // you need to implement it so that the user gets data from the server
-    // according to the filtering state.
-    //
-    // request.page is 1 when the filtering state changes.
-    // This is because, when the filtering state is changed,
-    // the first page must be loaded with the new filtering applied.
-    //
-    // request.filterRows is a List<PlutoRow> type containing filtering information.
-    // To convert to Map type, you can do as follows.
-    //
-    // FilterHelper.convertRowsToMap(request.filterRows);
-    //
-    // When the filter of abc is applied as Contains type to column2
-    // and 123 as Contains type to column3, for example
-    // It is returned as below.
-    // {column2: [{Contains: 123}], column3: [{Contains: abc}]}
-    //
-    // If multiple filtering conditions are set in one column,
-    // multiple conditions are included as shown below.
-    // {column2: [{Contains: abc}, {Contains: 123}]}
-    //
-    // The filter type in FilterHelper.defaultFilters is the default,
-    // If there is user-defined filtering,
-    // the title set by the user is returned as the filtering type.
-    // All filtering can change the value returned as a filtering type by changing the name property.
-    // In case of PlutoFilterTypeContains filter, if you change the static type name to include
-    // PlutoFilterTypeContains.name = 'include';
-    // {column2: [{include: abc}, {include: 123}]} will be returned.
     if (request.filterRows.isNotEmpty) {
       final filter = FilterHelper.convertRowsToFilter(request.filterRows, stateManager.refColumns);
 
       tempList = fakeFetchedRows.where(filter!).toList();
     }
 
-    // If there is a sort state,
-    // you need to implement it so that the user gets data from the server
-    // according to the sort state.
-    //
-    // request.page is 1 when the sort state changes.
-    // This is because when the sort state changes,
-    // new data to which the sort state is applied must be loaded.
     if (request.sortColumn != null && !request.sortColumn!.sort.isNone) {
       tempList = [...tempList];
 

@@ -7,7 +7,7 @@ sys.path.append(os.getcwd())
 from pymongo import AsyncMongoClient
 from rich import print as pprint
 
-from server.Environment import *
+from Environment import *
 
 client = AsyncMongoClient(
     MONGO_URL,

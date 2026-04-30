@@ -6,7 +6,7 @@ sys.path.append(os.getcwd())
 
 from minio import Minio
 
-from server.Environment import *
+from Environment import *
 
 
 class Storage(Minio):

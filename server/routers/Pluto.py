@@ -10,9 +10,9 @@ from typing import *
 from fastapi import *
 from pydantic import *
 
-from server.Environment import *
-from server.utilities.Response import R
-from server.utilities.Database import database as db
+from Environment import *
+from utilities.Response import R
+from utilities.Database import database as db
 
 
 router = APIRouter()
@@ -306,4 +306,4 @@ async def update_cell(input: PlutoUpdateRequest):
 
 
 if __name__ == "__main__":
-    os.system("python server/Main.py")
+    os.system("python Main.py")

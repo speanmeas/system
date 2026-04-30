@@ -8,8 +8,8 @@ from PIL import Image
 from io import BytesIO
 
 
-from server.Environment import *
-from server.utilities.Storage import storage as s3
+from Environment import *
+from utilities.Storage import storage as s3
 
 
 class Converter:

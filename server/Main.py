@@ -9,18 +9,18 @@ from fastapi import *
 from fastapi.responses import *
 from fastapi.middleware.cors import *
 
-from server.Environment import *
+from Environment import *
 
 
 app = FastAPI(title=TITLE, version="1.0.0", docs_url="/")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# from server.routers.Pluto import router as pluto
+# from routers.Pluto import router as pluto
 
 # app.include_router(pluto, prefix="/pluto", tags=["PlutoGrid"])
 
 
-from server.routers.Room import router as room
+from routers.Room import router as room
 
 app.include_router(room, prefix="/room", tags=["Room"])
 
