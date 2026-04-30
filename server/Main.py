@@ -9,14 +9,18 @@ from fastapi import *
 from fastapi.responses import *
 from fastapi.middleware.cors import *
 
-from Environment import *
+from server.Environment import *
 
 
 app = FastAPI(title=TITLE, version="1.0.0", docs_url="/")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 from routers.Room import router as room
+from routers.Pluto import router as pluto
+from routers.Pluto_Sample import router as pluto_sample
 
+app.include_router(pluto, prefix="/pluto", tags=["PlutoGrid"])
+app.include_router(pluto_sample, prefix="/pluto-sample", tags=["PlutoGrid Sample"])
 app.include_router(room, prefix="/room", tags=["Room"])
 
 # from routers.Credential import router as credential
@@ -50,11 +54,11 @@ if __name__ == "__main__":
         port=8000,
         reload=True,
         reload_includes=[
-            "routers/*.py",
-            "utilities/*.py",
+            "server/routers/*.py",
+            "server/utilities/*.py",
             ".env",
-            "Application.py",
-            "Environment.py",
+            "server/Application.py",
+            "server/Environment.py",
         ],
         reload_excludes=["__pycache__"],
     )

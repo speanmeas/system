@@ -43,6 +43,31 @@ class _Room_State extends State<Room_> {
   //
   //
 
+  bool is_admin = true;
+  double column_width = 120.0;
+
+  // this header
+  List<Map<String, dynamic>> headers = [
+    {"key": "_id", "label": "ID", "visible": false},
+    {"key": "name", "label": "Room No.", "visible": true},
+    {"key": "type", "label": "Room Type", "visible": true},
+    {"key": "ac_or_fan", "label": "Fan/AC", "visible": true},
+    {"key": "capacity", "label": "Capacity", "visible": false},
+    {"key": "price", "label": "Price", "visible": true},
+    {"key": "status", "label": "Status", "visible": false},
+    {"key": "image_1", "label": "Image 1", "visible": false},
+    {"key": "image_2", "label": "Image 2", "visible": false},
+    {"key": "created_at", "label": "Created At", "visible": true},
+    {"key": "updated_at", "label": "Updated At", "visible": false},
+    {"key": "deleted_at", "label": "Deleted At", "visible": false},
+  ];
+
+  List<Map<String, dynamic>> data = [];
+
+  String query = "";
+  String sort_by = "created_at";
+  int sort_order = -1; // 1 for ascending, -1 for descending
+
   @override
   void initState() {
     super.initState();
@@ -51,67 +76,29 @@ class _Room_State extends State<Room_> {
 
   void init() async {
     await dio
-        .post('/room/read', data: {}) //
-        .then((value) {
-          // print(value.data);
+        .post(
+          '/room/read',
+          data: {
+            "query": query,
+            "sort_by": sort_by, //
+            "sort_order": sort_order,
+            "limit": 100,
+          },
+        ) //
+        .then((r) {
+          setState(() {
+            data = List<Map<String, dynamic>>.from(r.data);
+          });
         });
-
-    Map<String, bool> input = {
-      'Room No.': true, //
-      'Type': true, //
-      'Fan/AC': true, //
-      'Meal': true, //
-      'Capacity': true, //
-      'Price': true, //
-      'Status': true, //
-      'Contact': false,
-    };
-
-    await ss.write(key: 'input', value: json.encode(input));
-
-    var output = await ss.read(key: 'input');
-    print(jsonDecode(output!));
   }
 
-  bool is_admin = true;
-
-  String? _sortKey;
-  bool _sortAscending = true;
-
-  // late final Map<String, Type> allHeader = {'Room No.': String, 'Type': String, 'Fan/AC': String, 'Meal': String, 'Capacity': String, 'Price': String, 'Status': String, 'Contact': String};
-
-  late Map<String, bool> column_visibility = {
-    'Room No.': true, //
-    'Type': true, //
-    'Fan/AC': true, //
-    'Meal': true, //
-    'Capacity': true, //
-    'Price': true, //
-    'Status': true, //
-    'Contact': false,
-  };
-
-  List<Map<String, dynamic>> data = [
-    {"Room No.": "101", "Type": "Single", "Fan/AC": "AC", "Meal": "Breakfast", "Capacity": "1", "Price": "100.0", "Status": "Available", "Contact": "1234567890"},
-    {"Room No.": "102", "Type": "Double", "Fan/AC": "Fan", "Meal": "All Meals", "Capacity": "2", "Price": "150.0", "Status": "Occupied", "Contact": "0987654321"},
-    {"Room No.": "103", "Type": "Suite", "Fan/AC": "AC", "Meal": "All Meals", "Capacity": "4", "Price": "300.0", "Status": "Cleaning", "Contact": "1122334455"},
-    {"Room No.": "104", "Type": "Single", "Fan/AC": "Fan", "Meal": "Breakfast", "Capacity": "1", "Price": "80.0", "Status": "Occupied", "Contact": "5566778899"},
-    {"Room No.": "105", "Type": "Double", "Fan/AC": "AC", "Meal": "All Meals", "Capacity": "2", "Price": "200.0", "Status": "Available", "Contact": "6677889900"},
-    {"Room No.": "106", "Type": "Suite", "Fan/AC": "Fan", "Meal": "All Meals", "Capacity": "4", "Price": "250.0", "Status": "Maintenance", "Contact": "7788990011"},
-  ];
-
-  late List<Map<String, dynamic>> search_data = List.from(data);
-
-  void on_search(v) {
-    print("search: $v");
-    setState(() {
-      search_data = data.where((room) => room.values.any((value) => value.toString().toLowerCase().contains(v.toString().toLowerCase()))).toList();
-    });
+  double get_width() {
+    return headers.where((e) => e["visible"] == true).length * 120.0;
   }
 
   @override
   Widget build(BuildContext context) {
-    final visibleColumns = column_visibility.entries.where((e) => e.value).map((e) => e.key).toList();
+    // final visibleColumns = column_visibility.entries.where((e) => e.value).map((e) => e.key).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -121,7 +108,12 @@ class _Room_State extends State<Room_> {
               height: 40,
               width: 160,
               child: TextField(
-                onChanged: on_search,
+                onChanged: (v) {
+                  setState(() {
+                    query = v;
+                  });
+                  init();
+                },
                 decoration: InputDecoration(
                   hintText: "Search...",
                   contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -141,14 +133,14 @@ class _Room_State extends State<Room_> {
                     MaterialPageRoute(
                       builder: (c) {
                         return Room_Add_(
-                          input: column_visibility.keys.toList(), //
+                          input: headers.map((e) => e["key"] as String).toList(), //
                         ); //
                       },
                     ),
                   ).then((v) {
                     if (v != null) {
                       setState(() {
-                        search_data.add(Map<String, dynamic>.from(v));
+                        // search_data.add(Map<String, dynamic>.from(v));
                       });
                     }
                   });
@@ -159,28 +151,28 @@ class _Room_State extends State<Room_> {
             // button column visibility
             IconButton(
               onPressed: () {
-                Navigator.push(
-                  context, //
-                  MaterialPageRoute(
-                    builder: (c) {
-                      return Room_Column_(
-                        input: column_visibility, //
-                      ); //
-                    },
-                  ),
-                ).then((v) {
-                  if (v != null) {
-                    setState(() {
-                      column_visibility = Map<String, bool>.from(v);
-                    });
-                  }
-                });
+                // Navigator.push(
+                //   context, //
+                //   MaterialPageRoute(
+                //     builder: (c) {
+                //       return Room_Column_(
+                //         input: column_width, //
+                //       ); //
+                //     },
+                //   ),
+                // ).then((v) {
+                //   if (v != null) {
+                //     setState(() {
+                //       column_width = v;
+                //     });
+                //   }
+                // });
               },
               icon: const Icon(Icons.view_column_outlined),
             ),
 
             // button export
-            IconButton(onPressed: () {}, icon: Icon(Icons.download)),
+            IconButton(onPressed: () {}, icon: Icon(Icons.download_outlined)),
           ],
         ),
         // backgroundColor: Colors.blueGrey,
@@ -191,148 +183,170 @@ class _Room_State extends State<Room_> {
       body: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: SizedBox(
-          width: is_admin ? visibleColumns.length * 100 + 80 : visibleColumns.length * 100,
+          width: is_admin ? get_width() + 80 : get_width(),
           child: Column(
             children: [
               Row(
                 children: [
-                  for (var key in visibleColumns)
+                  for (var row in headers)
+                    if (row["visible"])
+                      SizedBox(
+                        height: 40, //
+                        width: column_width, //
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              sort_by = row["key"];
+                              sort_order = -sort_order;
+                            });
+                            init();
+                          },
+                          child: Row(
+                            children: [
+                              Spacer(),
+                              Text(
+                                row["label"], //
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(width: 4), //
+                              Icon(Icons.unfold_more, size: 16), //
+                              Spacer(),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                  if (is_admin)
                     SizedBox(
                       height: 40, //
-                      width: 100, //
-                      child: InkWell(
-                        onTap: () {
-                          print(key);
-                          // toggle sort data by key
-                          setState(() {
-                            if (_sortKey == key) {
-                              _sortAscending = !_sortAscending;
-                            } else {
-                              _sortKey = key;
-                              _sortAscending = true;
-                            }
-                            search_data.sort((a, b) {
-                              int cmp = a[key].toString().compareTo(b[key].toString());
-                              return _sortAscending ? cmp : -cmp;
-                            });
-                          });
-                        },
-                        child: Row(
-                          children: [
-                            Spacer(),
-                            Text(key, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            SizedBox(width: 4), //
-                            Icon(
-                              _sortKey == key ? (_sortAscending ? Icons.arrow_drop_up : Icons.arrow_drop_down) : Icons.unfold_more, //
-                              size: 16,
-                            ), //
-                            Spacer(),
-                          ],
-                        ),
+                      width: 80, //
+                      child: Row(
+                        children: [
+                          Spacer(),
+                          Text("Actions", style: const TextStyle(fontWeight: FontWeight.bold)),
+                          SizedBox(width: 4), //
+                          Spacer(),
+                        ],
                       ),
                     ),
                 ],
               ),
-              if (search_data.isNotEmpty)
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: search_data.length + 1,
-                    itemBuilder: (context, index) {
-                      if (index < search_data.length) {
-                        return InkWell(
-                          child: Container(
-                            height: 40, //
-                            decoration: const BoxDecoration(
-                              border: Border(top: BorderSide(color: Colors.black12, width: 2)),
-                            ),
-                            child: Row(
-                              children: [
-                                for (var key in visibleColumns)
-                                  if (key == "Status")
-                                    Container(
-                                      width: 100,
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        "${search_data[index][key]}",
-                                        style: TextStyle(fontWeight: FontWeight.w600, color: {"Available": Colors.green, "Occupied": Colors.red, "Cleaning": Colors.blue, "Maintenance": Colors.orange}[search_data[index][key]] ?? Colors.black87),
-                                      ),
-                                    )
-                                  else if (key == "Price")
-                                    Container(width: 100, alignment: Alignment.center, child: Text("\$${search_data[index][key]}"))
-                                  else
-                                    Container(width: 100, alignment: Alignment.center, child: Text("${search_data[index][key]}")),
-
-                                // button edit
-                                if (is_admin)
-                                  SizedBox(
-                                    width: 40, //
-                                    child: IconButton(
-                                      icon: const Icon(Icons.edit_outlined), //
-                                      onPressed: () {
-                                        Navigator.push(
-                                          context, //
-                                          MaterialPageRoute(
-                                            builder: (c) {
-                                              return Room_Edit_(
-                                                input: Map<String, String>.from(search_data[index]), //
-                                              ); //
-                                            },
-                                          ),
-                                        ).then((v) {
-                                          if (v != null) {
-                                            setState(() {
-                                              search_data[index] = Map<String, dynamic>.from(v);
-                                            });
-                                          }
-                                        });
-                                      },
-                                    ),
-                                  ),
-
-                                // button delete
-                                if (is_admin)
-                                  SizedBox(
-                                    width: 40,
-                                    child: IconButton(
-                                      icon: const Icon(Icons.delete_outline),
-                                      onPressed: () {
-                                        setState(() {
-                                          search_data.removeAt(index);
-                                        });
-                                      },
-                                      color: Colors.red,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          onTap: () {
-                            Navigator.push(
-                              context, //
-                              MaterialPageRoute(
-                                builder: (c) {
-                                  return Room_View_(
-                                    data: search_data[index], //
-                                  ); //
-                                },
-                              ),
-                            );
-                            print('Tapped on row $index');
-                          },
-                        );
-                      } else {
-                        return Container(
+              Expanded(
+                child: ListView.builder(
+                  itemCount: data.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index < data.length) {
+                      return InkWell(
+                        child: Container(
                           height: 40, //
-                          alignment: Alignment.center,
                           decoration: const BoxDecoration(
                             border: Border(top: BorderSide(color: Colors.black12, width: 2)),
                           ),
-                          child: Text("Total: ${search_data.length} Rooms"),
-                        );
+                          child: Row(
+                            children: [
+                              for (var row in headers)
+                                if (row["visible"])
+                                  Container(
+                                    width: column_width, //
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      "${data[index][row["key"]] ?? ""}", //
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 2,
+                                      softWrap: true,
+                                    ),
+                                  ),
+
+                              // button edit
+                              if (is_admin)
+                                SizedBox(
+                                  width: 40, //
+                                  child: IconButton(
+                                    icon: const Icon(Icons.edit_outlined), //
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context, //
+                                        MaterialPageRoute(
+                                          builder: (c) {
+                                            return Room_Edit_(
+                                              input: Map<String, String>.from(data[index]), //
+                                            ); //
+                                          },
+                                        ),
+                                      ).then((v) {
+                                        if (v != null) {
+                                          setState(() {});
+                                        }
+                                      });
+                                    },
+                                  ),
+                                ),
+
+                              // button delete
+                              if (is_admin)
+                                SizedBox(
+                                  width: 40,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.delete_outline),
+                                    onPressed: () {
+                                      setState(() {});
+                                    },
+                                    color: Colors.red,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context, //
+                            MaterialPageRoute(
+                              builder: (c) {
+                                return Room_View_(
+                                  data: data[index], //
+                                ); //
+                              },
+                            ),
+                          );
+                          print('Tapped on row $index');
+                        },
+                      );
+                    } else {
+                      if (index == data.length) {
+                        dio
+                            .post(
+                              '/room/read',
+                              data: {
+                                "query": query,
+                                "sort_by": sort_by, //
+                                "sort_order": sort_order,
+                                "offset": data.length,
+                                "limit": 100,
+                              },
+                            )
+                            .then((r) {
+                              setState(() {
+                                data.addAll(List<Map<String, dynamic>>.from(r.data));
+                              });
+                            });
                       }
-                    },
-                  ),
+                    }
+                    return null;
+                    // else {
+
+                    //   return Container(
+                    //     height: 40, //
+                    //     alignment: Alignment.center,
+                    //     decoration: const BoxDecoration(
+                    //       border: Border(top: BorderSide(color: Colors.black12, width: 2)),
+                    //     ),
+                    //     child: Text("Total: ${data.length} Rooms"),
+                    //   );
+                    // }
+                  },
                 ),
+              ),
             ],
           ),
         ),

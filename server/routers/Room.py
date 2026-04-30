@@ -19,12 +19,12 @@ from bson import ObjectId, json_util
 from rich import print as pprint
 
 
-from Environment import *
-from utilities.Converter import converter as cvt
-from utilities.Response import R
-from utilities.Token import token as tk
-from utilities.Storage import storage as s3
-from utilities.Database import database as db
+from server.Environment import *
+from server.utilities.Response import R
+from server.utilities.Converter import converter as cvt
+from server.utilities.Token import token as tk
+from server.utilities.Storage import storage as s3
+from server.utilities.Database import database as db
 
 
 router = APIRouter()
@@ -74,7 +74,7 @@ class Room_Read(BaseModel):
     sort_by: Literal[*Room_Column_Sortable.model_fields.keys()] | None = Field(None, examples=[None])
     sort_order: Literal[-1, 1] | None = Field(None, examples=[None])
     offset: int | None = Field(None, examples=[None], ge=0)
-    limit: int | None = Field(None, examples=[None], ge=1)
+    limit: int | None = Field(None, examples=[None], ge=1, le=10000)
 
 
 class Room_Refer(BaseModel):
@@ -130,8 +130,7 @@ async def read(input: Room_Read):
             .find(
                 {
                     "$and": [
-                        {"$or": [{c: {"$regex": re.escape(input.query or ""), "$options": "i"}} for c in Room_Create.model_fields.keys()]},
-                        {"deleted_at": None},
+                        {"deleted_at": None} if not input.query else {"$or": [{c: {"$regex": re.escape(input.query), "$options": "i"}} for c in Room_Create.model_fields.keys()]},
                     ]
                 }
             )
@@ -141,7 +140,14 @@ async def read(input: Room_Read):
             .to_list(length=None)
         )
 
-        return json.loads(json_util.dumps(search))
+        # convert to flutter list<map<string,string>>
+        for item in search:
+            item["_id"] = str(item["_id"])
+            item["created_at"] = item.get("created_at", None) and item["created_at"].strftime("%Y-%m-%d %H:%M:%S") or None
+            item["updated_at"] = item.get("updated_at", None) and item["updated_at"].strftime("%Y-%m-%d %H:%M:%S") or None
+            item["deleted_at"] = item.get("deleted_at", None) and item["deleted_at"].strftime("%Y-%m-%d %H:%M:%S") or None
+
+        return search
 
     except Exception:
         return R(500, "server error")
@@ -290,4 +296,4 @@ async def delete_row(data: Room_Delete):
 
 
 if __name__ == "__main__":
-    os.system("python Main.py")
+    os.system("python server/Main.py")

@@ -3,8 +3,21 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 
+void main() {
+  runApp(const _App());
+}
+
+class _App extends StatelessWidget {
+  const _App();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(debugShowCheckedModeBanner: false, home: const RowInfinityScrollScreen());
+  }
+}
+
 class RowInfinityScrollScreen extends StatefulWidget {
-  static const routeName = 'feature/row-infinity-scroll';
+  // static const routeName = 'feature/row-infinity-scroll';
 
   const RowInfinityScrollScreen({super.key});
 
@@ -23,7 +36,11 @@ class RowInfinityScrollScreenState extends State<RowInfinityScrollScreen> {
   void initState() {
     super.initState();
 
-    columns = [PlutoColumn(title: 'column1', field: 'column1', type: PlutoColumnType.text()), PlutoColumn(title: 'column2', field: 'column2', type: PlutoColumnType.text()), PlutoColumn(title: 'column3', field: 'column3', type: PlutoColumnType.date())];
+    columns = [
+      PlutoColumn(title: 'column1', field: 'column1', type: PlutoColumnType.text()), //
+      PlutoColumn(title: 'column2', field: 'column2', type: PlutoColumnType.text()), //
+      PlutoColumn(title: 'column3', field: 'column3', type: PlutoColumnType.date()),
+    ];
 
     rows = [];
     fakeFetchedRows = _generateRows(100000);
@@ -87,7 +104,7 @@ class RowInfinityScrollScreenState extends State<RowInfinityScrollScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Row infinity scroll')),
       body: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
         child: PlutoGrid(
           columns: columns,
           rows: rows,
@@ -102,18 +119,5 @@ class RowInfinityScrollScreenState extends State<RowInfinityScrollScreen> {
         ),
       ),
     );
-  }
-}
-
-void main() {
-  runApp(const _App());
-}
-
-class _App extends StatelessWidget {
-  const _App();
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(debugShowCheckedModeBanner: false, home: const RowInfinityScrollScreen());
   }
 }

@@ -8,7 +8,7 @@ from PIL import Image
 from io import BytesIO
 from utilities.Storage import storage as s3
 
-from Environment import *
+from server.Environment import *
 
 
 class Converter:
