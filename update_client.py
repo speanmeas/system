@@ -4,6 +4,8 @@ import time
 import paramiko
 from tqdm import tqdm
 
+os.chdir("client")
+
 
 # read pubspec.yaml
 content = ""

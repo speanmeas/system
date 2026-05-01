@@ -18,7 +18,7 @@ from datetime import datetime
 from rich import print as pprint
 from PIL import Image
 
-from Environment import *
+from server.Environment import *
 from utilities.Security import hash as se
 from utilities.Database import database as db
 from utilities.Storage import storage as s3

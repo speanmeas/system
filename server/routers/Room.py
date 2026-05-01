@@ -39,9 +39,8 @@ class Room_Column_ID(BaseModel):
 
 
 class Room_Column_Data(BaseModel):
-    name: str | None = Field(None, examples=[None])
-    type: str | None = Field(None, examples=[None])
-    ac_or_fan: str | None = Field(None, examples=[None])
+    room_number: str | None = Field(None, examples=[None], alias="name")
+    room_type: str | None = Field(None, examples=[None], alias="type")
     capacity: int | None = Field(None, examples=[None], ge=0)
     price: float | None = Field(None, examples=[None], ge=0)
     status: str | None = Field(None, examples=[None])
@@ -71,7 +70,7 @@ class Room_Create(Room_Column_Data):
 
 class Room_Read(BaseModel):
     query: str | None = Field(None, examples=[None])
-    sort_by: Literal[*Room_Column_Sortable.model_fields.keys()] | None = Field(None, examples=[None])
+    sort_by: str | None = Field(None, examples=[None])  # Accept any string, map to DB fields
     sort_order: Literal[-1, 1] | None = Field(None, examples=[None])
     offset: int | None = Field(None, examples=[None], ge=0)
     limit: int | None = Field(None, examples=[None], ge=1, le=10000)
@@ -135,6 +134,12 @@ async def count():
 @router.post("/read", deprecated=False)
 async def read(input: Room_Read):
     try:
+        # Map client field names to DB field names
+        sort_field_map = {
+            "room_number": "name",
+            "room_type": "type",
+        }
+        db_sort_by = sort_field_map.get(input.sort_by, input.sort_by) if input.sort_by else None
 
         # search
         search = (
@@ -142,24 +147,34 @@ async def read(input: Room_Read):
             .find(
                 {
                     "$and": [
-                        {"deleted_at": None} if not input.query else {"$or": [{c: {"$regex": re.escape(input.query), "$options": "i"}} for c in Room_Create.model_fields.keys()]},
+                        {"deleted_at": None} if not input.query else {"$or": [{c: {"$regex": re.escape(input.query), "$options": "i"}} for c in ["name", "type", "status"]]},
                     ]
                 }
             )
-            .sort(input.sort_by or "created_at", input.sort_order or 1)
+            .sort(db_sort_by or "created_at", input.sort_order or 1)
             .skip(input.offset or 0)
             .limit(input.limit or 1000)
             .to_list(length=None)
         )
 
         # convert to flutter list<map<string,string>>
+        result = []
         for item in search:
-            item["_id"] = str(item["_id"])
-            item["created_at"] = item.get("created_at", None) and item["created_at"].strftime("%Y-%m-%d %H:%M:%S") or None
-            item["updated_at"] = item.get("updated_at", None) and item["updated_at"].strftime("%Y-%m-%d %H:%M:%S") or None
-            item["deleted_at"] = item.get("deleted_at", None) and item["deleted_at"].strftime("%Y-%m-%d %H:%M:%S") or None
+            result.append(
+                {
+                    "_id": str(item["_id"]),
+                    "room_number": item.get("name", ""),
+                    "room_type": item.get("type", ""),
+                    "capacity": item.get("capacity", 0),
+                    "price": item.get("price", 0.0),
+                    "status": item.get("status", ""),
+                    "created_at": item.get("created_at") and item["created_at"].strftime("%Y-%m-%d %H:%M:%S") or None,
+                    "updated_at": item.get("updated_at") and item["updated_at"].strftime("%Y-%m-%d %H:%M:%S") or None,
+                    "deleted_at": item.get("deleted_at") and item["deleted_at"].strftime("%Y-%m-%d %H:%M:%S") or None,
+                }
+            )
 
-        return search
+        return result
 
     except Exception:
         return R(500, "server error")
@@ -196,8 +211,9 @@ async def update(data: Room_Update):
         if not exist:
             return R(400, "not found")
 
-        # update room
-        for k, v in data.model_dump().items():
+        # update room - use by_alias=True to get DB field names (name, type, etc.)
+        update_data = data.model_dump(by_alias=True, exclude={"id", "_id"})
+        for k, v in update_data.items():
             if v is not None:
                 print(k, v)
                 await db[COLLECTION].update_one(

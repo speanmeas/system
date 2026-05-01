@@ -100,7 +100,6 @@ class _RowLazyPaginationScreenState extends State<RowLazyPaginationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Row moving')),
       body: PlutoGrid(
         columns: columns,
         rows: rows,

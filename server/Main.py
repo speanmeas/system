@@ -24,6 +24,10 @@ from routers.Room import router as room
 
 app.include_router(room, prefix="/room", tags=["Room"])
 
+from routers.Staff import router as staff
+
+app.include_router(staff, prefix="/staff", tags=["Staff"])
+
 # from routers.Credential import router as credential
 
 # app.include_router(credential, prefix="/credential", tags=["Credential"])
@@ -55,11 +59,11 @@ if __name__ == "__main__":
         port=8000,
         reload=True,
         reload_includes=[
-            "server/routers/*.py",
-            "server/utilities/*.py",
-            ".env",
-            "server/Application.py",
-            "server/Environment.py",
+            "routers/*.py",
+            "utilities/*.py",
+            "../.env",
+            "Application.py",
+            "Environment.py",
         ],
         reload_excludes=["__pycache__"],
     )

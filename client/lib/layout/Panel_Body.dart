@@ -50,7 +50,7 @@ class _Panel_Body_State extends State<Panel_Body_> {
     "Setting": Setting_(),
     "Customer": Customer_(),
     "User": User_(),
-    "Staff": Staff_(),
+    "Staff": StaffTable(),
   };
 
   @override

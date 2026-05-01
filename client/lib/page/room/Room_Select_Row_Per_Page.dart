@@ -10,8 +10,8 @@ class Room_Select_Row_Per_Page extends StatelessWidget {
   Room_Select_Row_Per_Page({super.key});
 
   dynamic input = {
-    "options": [10, 25, 50, 100],
-    "selected": 10, //
+    'rowPerPage': 10,
+    'rowOptions': [10, 25, 50, 100],
   };
 
   @override
@@ -25,7 +25,10 @@ class Room_Select_Row_Per_Page extends StatelessWidget {
 }
 
 class Room_Select_Row_Per_Page_ extends StatefulWidget {
-  Room_Select_Row_Per_Page_({super.key, required this.input});
+  Room_Select_Row_Per_Page_({
+    super.key, //
+    required this.input,
+  });
 
   final dynamic input;
 
@@ -37,46 +40,57 @@ class _Room_Select_Row_Per_Page_State extends State<Room_Select_Row_Per_Page_> {
   //
   //
 
-  late dynamic output = widget.input;
-
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      contentPadding: EdgeInsets.fromLTRB(4, 0, 4, 0),
-      titlePadding: EdgeInsets.fromLTRB(4, 4, 4, 4),
-      title: Row(
+      contentPadding: EdgeInsets.zero,
+      titlePadding: const EdgeInsets.all(4),
+      title: const Row(
         children: [
           Spacer(),
-          Text("Select Rows/Page", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          Spacer(),
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            icon: Icon(Icons.close, color: Colors.red),
+          Text(
+            "Select Rows/Page", //
+            style: TextStyle(
+              fontSize: 16, //
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          // IconButton(icon: Icon(Icons.close), onPressed: () => Navigator.of(context).pop()),
+          Spacer(),
+          CloseButton(color: Colors.red),
         ],
       ),
-
       content: SizedBox(
         width: 600,
         child: ListView.builder(
           shrinkWrap: true,
-          itemCount: output["options"].length,
+          itemCount: widget.input['rowOptions'].length,
           itemBuilder: (context, index) {
-            final option = output["options"][index];
-            final isSelected = option == output["selected"];
-            return ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(option.toString()),
-              leading: isSelected ? Icon(Icons.check, color: Colors.blue) : SizedBox(width: 24),
+            final value = widget.input['rowOptions'][index] as int;
+            final isSelected = value == widget.input['rowPerPage'];
+
+            return InkWell(
               onTap: () {
                 setState(() {
-                  output["selected"] = option;
+                  widget.input['rowPerPage'] = value;
                 });
-                Navigator.of(context).pop(option);
+                // Add small delay to show the tick before closing
+                Future.delayed(const Duration(milliseconds: 200), () {
+                  Navigator.of(context).pop(widget.input);
+                });
               },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : null),
+                child: Row(
+                  children: [
+                    Icon(isSelected ? Icons.check : null, color: isSelected ? Theme.of(context).primaryColor : null, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(value.toString(), style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                    ),
+                  ],
+                ),
+              ),
             );
           },
         ),
