@@ -157,24 +157,7 @@ async def read(input: Room_Read):
             .to_list(length=None)
         )
 
-        # convert to flutter list<map<string,string>>
-        result = []
-        for item in search:
-            result.append(
-                {
-                    "_id": str(item["_id"]),
-                    "room_number": item.get("name", ""),
-                    "room_type": item.get("type", ""),
-                    "capacity": item.get("capacity", 0),
-                    "price": item.get("price", 0.0),
-                    "status": item.get("status", ""),
-                    "created_at": item.get("created_at") and item["created_at"].strftime("%Y-%m-%d %H:%M:%S") or None,
-                    "updated_at": item.get("updated_at") and item["updated_at"].strftime("%Y-%m-%d %H:%M:%S") or None,
-                    "deleted_at": item.get("deleted_at") and item["deleted_at"].strftime("%Y-%m-%d %H:%M:%S") or None,
-                }
-            )
-
-        return result
+        return json.loads(json_util.dumps(search))
 
     except Exception:
         return R(500, "server error")

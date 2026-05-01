@@ -24,9 +24,6 @@ from routers.Room import router as room
 
 app.include_router(room, prefix="/room", tags=["Room"])
 
-from routers.Staff import router as staff
-
-app.include_router(staff, prefix="/staff", tags=["Staff"])
 
 # from routers.Credential import router as credential
 
