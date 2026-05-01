@@ -58,7 +58,7 @@ class _Room_State extends State<Room_> {
                     ),
                     Expanded(
                       child: ListView.builder(
-                        itemCount: 100,
+                        itemCount: 1000,
                         itemBuilder: (context, index) {
                           return _row_builder(index);
                         },
