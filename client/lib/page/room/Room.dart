@@ -46,16 +46,18 @@ class _Room_State extends State<Room_> {
   bool is_admin = true;
 
   double header_height = 40.0;
+
   double row_height = 40.0;
   double column_width = 120.0;
+  double number_column_width = 60.0;
 
   bool is_search = false;
 
   // this header
   List<Map<String, dynamic>> headers = [
-    {"key": "_id", "label": "ID", "visible": true},
-    {"key": "room_type", "label": "Room Type", "visible": true},
+    {"key": "_id", "label": "ID", "visible": false},
     {"key": "room_number", "label": "Room No.", "visible": true},
+    {"key": "room_type", "label": "Room Type", "visible": true},
     // {"key": "ac_or_fan", "label": "Fan/AC", "visible": true},
     {"key": "capacity", "label": "Capacity", "visible": true},
     {"key": "price", "label": "Price", "visible": true},
@@ -143,7 +145,7 @@ class _Room_State extends State<Room_> {
   }
 
   double get_width() {
-    return headers.where((e) => e["visible"] == true).length * 120.0;
+    return number_column_width + headers.where((e) => e["visible"] == true).length * column_width;
   }
 
   @override
@@ -214,8 +216,17 @@ class _Room_State extends State<Room_> {
               if (!is_search)
                 Row(
                   children: [
+                    Container(
+                      height: header_height, //
+                      width: number_column_width, //
+                      alignment: Alignment.center,
+                      child: Text(
+                        "No.", //
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
                     ...headers.where((row) => row["visible"]).map((row) {
-                      return SizedBox(
+                      return Container(
                         height: header_height, //
                         width: column_width, //
                         child: InkWell(
@@ -237,7 +248,7 @@ class _Room_State extends State<Room_> {
                     }),
 
                     if (is_admin)
-                      SizedBox(
+                      Container(
                         height: header_height, //
                         width: 80, //
                         child: Row(
@@ -256,6 +267,16 @@ class _Room_State extends State<Room_> {
               if (is_search)
                 Row(
                   children: [
+                    Container(
+                      height: header_height, //
+                      width: number_column_width, //
+                      alignment: Alignment.center,
+                      child: Text(
+                        "No.", //
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+
                     ...headers.where((row) => row["visible"]).map((row) {
                       return Container(
                         height: header_height, //
@@ -275,7 +296,7 @@ class _Room_State extends State<Room_> {
                     }),
 
                     if (is_admin)
-                      SizedBox(
+                      Container(
                         height: header_height, //
                         width: 80, //
                         child: Row(
@@ -317,6 +338,14 @@ class _Room_State extends State<Room_> {
                         ),
                         child: Row(
                           children: [
+                            Container(
+                              width: number_column_width, //
+                              alignment: Alignment.center,
+                              child: Text(
+                                "${index + 1}", //
+                              ),
+                            ),
+
                             ...headers.where((row) => row["visible"]).map((row) {
                               if (row["key"] == "_id") {
                                 return Container(
