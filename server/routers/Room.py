@@ -30,83 +30,30 @@ from utilities.Database import database as db
 router = APIRouter()
 
 
-# collection name
-COLLECTION = "c_room"
+COLLECTION = "collection_room"
 
 
-class Room_Column_ID(BaseModel):
-    id: str | None = Field(None, examples=[None], alias="_id")
+COLUMNS = ["name", "type", "capacity", "price", "status"]
 
 
-class Room_Column_Data(BaseModel):
-    room_number: str | None = Field(None, examples=[None], alias="name")
-    room_type: str | None = Field(None, examples=[None], alias="type")
-    capacity: int | None = Field(None, examples=[None], ge=0)
-    price: float | None = Field(None, examples=[None], ge=0)
-    status: str | None = Field(None, examples=[None])
-
-
-class Room_Column_Image(BaseModel):
-    image_1: str | None = Field(None, examples=[None])
-    image_2: str | None = Field(None, examples=[None])
-
-
-class Room_Column_DateTime(BaseModel):
-    created_at: datetime | None = Field(None, examples=[None])
-    updated_at: datetime | None = Field(None, examples=[None])
-    deleted_at: datetime | None = Field(None, examples=[None])
-
-
-class Room_Column_Sortable(Room_Column_Data, Room_Column_DateTime):
-    pass
-
-
-##########
-
-
-class Room_Create(Room_Column_Data):
-    pass
-
-
-class Room_Read(BaseModel):
-    query: str | None = Field(None, examples=[None])
-    sort_by: str | None = Field(None, examples=[None])  # Accept any string, map to DB fields
-    sort_order: Literal[-1, 1] | None = Field(None, examples=[None])
-    offset: int | None = Field(None, examples=[None], ge=0)
-    limit: int | None = Field(None, examples=[None], ge=1, le=10000)
-
-
-class Room_Refer(BaseModel):
-    column: Literal[*Room_Column_Sortable.model_fields.keys()] = Field(..., examples=[None])
-
-
-class Room_Update(Room_Column_Data, Room_Column_ID):
-    pass
-
-
-# special case
-class Room_Upload(BaseModel):
-    id: str = Field(..., examples=[""], alias="_id")
-    column: Literal[*Room_Column_Image.model_fields.keys()] = Field(..., examples=[None])
-    image_data: UploadFile = File(...)
-
-
-class Room_Delete(Room_Column_ID):
-    pass
-
-
-# * OK
 @router.post("/create", deprecated=False)
-async def create(input: Room_Create):
+async def create(
+    name_: str | None = Form(None, examples=[""], alias="name"),
+    type_: str | None = Form(None, examples=[""], alias="type"),
+    capacity_: int | None = Form(None, examples=[""], alias="capacity"),
+    price_: float | None = Form(None, examples=[""], alias="price"),
+    status_: str | None = Form(None, examples=[""], alias="status"),
+):
     try:
 
         # prepare data
         data = {
-            **input.model_dump(),
-            **Room_Column_Image().model_dump(),
+            "name": name_,
+            "type": type_,
+            "capacity": capacity_,
+            "price": price_,
+            "status": status_,
             "created_at": datetime.now(),
-            "updated_at": None,
-            "deleted_at": None,
         }
 
         # insert data
@@ -118,42 +65,33 @@ async def create(input: Room_Create):
         return R(500, "server error")
 
 
-@router.post("/count")
-async def count():
-    try:
-        # get total count of non-deleted records
-        total = await db[COLLECTION].count_documents({"deleted_at": None})
-
-        return total
-
-    except Exception:
-        return R(500, "server error")
-
-
-# * OK
 @router.post("/read", deprecated=False)
-async def read(input: Room_Read):
+async def read(
+    column_: Literal[*COLUMNS] | None = Form(None, alias="column"),
+    query_: str | None = Form(None, examples=[""], alias="query"),
+    order_: Literal[-1, 1] | None = Form(None, examples=[""], alias="order"),
+    offset_: int | None = Form(None, examples=[""], ge=0, alias="offset"),
+    limit_: int | None = Form(None, examples=[""], ge=1, le=10000, alias="limit"),
+):
     try:
-        # Map client field names to DB field names
-        sort_field_map = {
-            "room_number": "name",
-            "room_type": "type",
-        }
-        db_sort_by = sort_field_map.get(input.sort_by, input.sort_by) if input.sort_by else None
 
-        # search
+        query = {"deleted_at": {"$eq": "" or None}}
+
+        if column_:
+            query["$and"] = [
+                {column_: {"$regex": re.escape(query_ or ""), "$options": "i"}},
+                {"deleted_at": None},
+            ]
+
         search = (
-            await db[COLLECTION]
-            .find(
-                {
-                    "$and": [
-                        {"deleted_at": None} if not input.query else {"$or": [{c: {"$regex": re.escape(input.query), "$options": "i"}} for c in ["name", "type", "status"]]},
-                    ]
-                }
+            await db[COLLECTION]  #
+            .find(query)
+            .sort(
+                column_ or "created_at",
+                order_ or 1,
             )
-            .sort(db_sort_by or "created_at", input.sort_order or 1)
-            .skip(input.offset or 0)
-            .limit(input.limit or 1000)
+            .skip(offset_ or 0)
+            .limit(limit_ or 100)
             .to_list(length=None)
         )
 
@@ -164,76 +102,81 @@ async def read(input: Room_Read):
 
 
 @router.post("/refer", deprecated=False)
-async def refer(data: Room_Refer):
+async def refer(
+    column_: Literal[*COLUMNS] = Form(..., alias="column"),
+):
     try:
 
         # get distinct values
-        value = await db[COLLECTION].distinct(  # distinct = get unique values
-            data.column,
+        unique = await db[COLLECTION].distinct(  # distinct = get unique values
+            column_,
             {
                 "deleted_at": None,  # eq = equal
-                data.column: {"$ne": None, "$nin": [""]},  # ne = not equal, nin = not in
+                column_: {"$ne": None, "$nin": [""]},  # ne = not equal, nin = not in
             },
         )
 
-        return value
+        return json.loads(json_util.dumps(unique))
 
     except Exception:
         return R(500, "server error")
 
 
 @router.post("/update", deprecated=False)
-async def update(data: Room_Update):
+async def update(
+    id_: str = Form(..., examples=[""], alias="id"),
+    column_: Literal[*COLUMNS] = Form(..., alias="column"),
+    value_: str | None = Form(None, examples=[""], alias="value"),
+):
     try:
         # validate id
-        if not data.id or data.id == "" or not ObjectId.is_valid(data.id):
+        if not id_ or id_ == "" or not ObjectId.is_valid(id_):
             return R(400, "invalid id")
 
         # validate room exist
-        exist = await db[COLLECTION].find_one({"_id": ObjectId(data.id)})
+        exist = await db[COLLECTION].find_one({"_id": ObjectId(id_)})
         if not exist:
             return R(400, "not found")
 
         # update room - use by_alias=True to get DB field names (name, type, etc.)
-        update_data = data.model_dump(by_alias=True, exclude={"id", "_id"})
-        for k, v in update_data.items():
-            if v is not None:
-                print(k, v)
-                await db[COLLECTION].update_one(
-                    {"_id": ObjectId(data.id)},
-                    {
-                        "$set": {
-                            k: v,
-                            "updated_at": datetime.now(),
-                        }
-                    },
-                )
+        await db[COLLECTION].update_one(
+            {"_id": ObjectId(id_)},
+            {
+                "$set": {
+                    column_: value_ or "",
+                    "updated_at": datetime.now(),
+                }
+            },
+        )
 
         return R(200, "update success")
     except Exception:
         return R(500, "server error")
 
 
-# * OK
 @router.post("/upload", deprecated=False)
-async def upload_image(data: Room_Upload = Form(...)):
+async def upload_image(
+    id_: str = Form(..., examples=[""], alias="id"),
+    index_: Literal[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] = Form(..., alias="index"),
+    data_: UploadFile | None = File(None, examples=[None], alias="data"),
+):
     try:
 
         # validate id
-        if not data.id or data.id == "" or not ObjectId.is_valid(data.id):
+        if not id_ or id_ == "" or not ObjectId.is_valid(id_):
             return R(400, "invalid id")
 
         # validate column
-        if not data.column or data.column == "" or data.column not in Room_Column_Image.model_fields.keys():
+        if not column_ or column_ == "" or column_ not in Room_Column_Image.model_fields.keys():
             return R(400, "invalid column name")
 
         # validate room
-        exist = await db[COLLECTION].find_one({"_id": ObjectId(data.id)})
+        exist = await db[COLLECTION].find_one({"_id": ObjectId(id_)})
         if not exist:
             return R(404, "room not found")
 
         # validate image size
-        content = await image_data.read()
+        content = await data_.read()
         if len(content) > 10 * 1024 * 1024 or len(content) <= 0:
             return R(400, "image size must be less than 10 MB")
 
@@ -246,15 +189,16 @@ async def upload_image(data: Room_Upload = Form(...)):
         print(f"image_name : {image_name_new}")
 
         # delete old image file if exists
-        image_name_old = exist.get(data.column)
+        # ! need to check
+        image_name_old = exist.get("Images")[index_]
         if image_name_old:
             if s3.object_exists(MINIO_BUCKET_PUBLIC, image_name_old):
                 s3.remove_object(MINIO_BUCKET_PUBLIC, image_name_old)
 
         # convert image to png format
-        image = Image.open(BytesIO(content))
+        data_ = Image.open(BytesIO(content))
         image_buffer = BytesIO()
-        image.save(image_buffer, format="PNG")
+        data_.save(image_buffer, format="PNG")
         image_buffer.seek(0)
 
         # upload new image file
@@ -267,8 +211,9 @@ async def upload_image(data: Room_Upload = Form(...)):
 
         # add image name to database
         await db[COLLECTION].update_one(
-            {"_id": ObjectId(data.id)},
-            {"$set": {data.column: image_name_new, "updated_at": datetime.now()}},
+            {"_id": ObjectId(id)},
+            # ! need to check
+            {"$set": {f"Images.{index_}": image_name_new, "updated_at": datetime.now()}},
         )
 
         # generate thumbnails
@@ -282,21 +227,23 @@ async def upload_image(data: Room_Upload = Form(...)):
 
 # * OK
 @router.post("/delete", deprecated=False)
-async def delete_row(data: Room_Delete):
+async def delete_row(
+    id_: str = Form(..., examples=[""], alias="id"),
+):
     try:
 
         # check if id is valid
-        if not ObjectId.is_valid(data.id):
+        if not ObjectId.is_valid(id_):
             return R(400, "invalid id")
 
         # check if id exists in database
-        exist = await db[COLLECTION].find_one({"_id": ObjectId(data.id)})
+        exist = await db[COLLECTION].find_one({"_id": ObjectId(id_)})
         if not exist:
             return R(400, "room not found")
 
         # soft delete a row
         await db[COLLECTION].update_one(
-            {"_id": ObjectId(data.id)},
+            {"_id": ObjectId(id_)},
             {"$set": {"deleted_at": datetime.now()}},
         )
 

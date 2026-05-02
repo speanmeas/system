@@ -56,8 +56,8 @@ class _Room_State extends State<Room_> {
   // this header
   List<Map<String, dynamic>> headers = [
     {"key": "_id", "label": "ID", "visible": false},
-    {"key": "room_number", "label": "Room No.", "visible": true},
-    {"key": "room_type", "label": "Room Type", "visible": true},
+    {"key": "name", "label": "Room No.", "visible": true},
+    {"key": "type", "label": "Room Type", "visible": true},
     // {"key": "ac_or_fan", "label": "Fan/AC", "visible": true},
     {"key": "capacity", "label": "Capacity", "visible": true},
     {"key": "price", "label": "Price", "visible": true},
@@ -71,9 +71,10 @@ class _Room_State extends State<Room_> {
 
   List<Map<String, dynamic>> data = [];
 
-  String query = "";
-  String sort_by = "created_at";
-  int sort_order = 1; // 1 for ascending, -1 for descending
+  String? query;
+  String? sort_by;
+  int? sort_order;
+  List<int?> sort_order_options = [-1, null, 1];
 
   @override
   void initState() {
@@ -82,66 +83,87 @@ class _Room_State extends State<Room_> {
   }
 
   void init() async {
-    // await dio
-    //     .post(
-    //       '/room/read',
-    //       data: {
-    //         "query": query,
-    //         "sort_by": sort_by, //
-    //         "sort_order": sort_order,
-    //         "limit": 100,
-    //       },
-    //     ) //
-    //     .then((r) {
-    //       setState(() {
-    //         data = List<Map<String, dynamic>>.from(r.data);
-    //         print(data);
-    //       });
-    //     });
+    await dio
+        .post(
+          '/room/read',
+          data: Map.from({
+            // "column": Null, //
+            // "query": Null,
+            // "order": Null,
+            // "offset": Null,
+            // "limit": Null,
+          }),
+        ) //
+        .then((r) {
+          setState(() {
+            // print(r.data);
+            data = List<Map<String, dynamic>>.from(r.data);
+            // print(data);
+          });
+        });
 
-    setState(() {
-      data = List<Map<String, dynamic>>.generate(
-        100,
-        (index) => {
-          "_id": {"\$oid": "${index + 1}"},
-          "room_number": "10${index + 1}",
-          "room_type": ["Single", "Double", "Triple", "Quad"][(index + 1) % 4],
-          "ac_or_fan": ["Fan", "AC"][(index + 1) % 2],
-          "capacity": ((index + 1) % 3) + 1,
-          "price": (index + 1) * 100,
-          "status": ["Available", "Occupied", "Maintenance"][(index + 1) % 3],
-          "image_1": "image_1",
-          "image_2": "image_2",
-          "created_at": "2022-01-0${index + 1}",
-          "updated_at": "2022-01-0${index + 1}",
-          "deleted_at": "2022-01-0${index + 1}",
-        },
-      );
-    });
+    // setState(() {
+    //   data = List<Map<String, dynamic>>.generate(
+    //     100,
+    //     (index) => {
+    //       "_id": {"\$oid": "${index + 1}"},
+    //       "room_number": "10${index + 1}",
+    //       "room_type": ["Single", "Double", "Triple", "Quad"][(index + 1) % 4],
+    //       "ac_or_fan": ["Fan", "AC"][(index + 1) % 2],
+    //       "capacity": ((index + 1) % 3) + 1,
+    //       "price": (index + 1) * 100,
+    //       "status": ["Available", "Occupied", "Maintenance"][(index + 1) % 3],
+    //       "image_1": "image_1",
+    //       "image_2": "image_2",
+    //       "created_at": "2022-01-0${index + 1}",
+    //       "updated_at": "2022-01-0${index + 1}",
+    //       "deleted_at": "2022-01-0${index + 1}",
+    //     },
+    //   );
+    // });
   }
 
-  void load_more() {
-    setState(() {
-      data.addAll(
-        List<Map<String, dynamic>>.generate(
-          100,
-          (index) => {
-            "_id": {"\$oid": "${data.length + index + 1}"},
-            "room_number": "10${data.length + index + 1}",
-            "room_type": ["Single", "Double", "Triple", "Quad"][(data.length + index + 1) % 4],
-            "ac_or_fan": ["Fan", "AC"][(data.length + index + 1) % 2],
-            "capacity": ((data.length + index + 1) % 3) + 1,
-            "price": (data.length + index + 1) * 100,
-            "status": ["Available", "Occupied", "Maintenance"][(data.length + index + 1) % 3],
-            "image_1": "image_1",
-            "image_2": "image_2",
-            "created_at": "2022-01-0${data.length + index + 1}",
-            "updated_at": "2022-01-0${data.length + index + 1}",
-            "deleted_at": "2022-01-0${data.length + index + 1}",
-          },
-        ),
-      );
-    });
+  void load_more() async {
+    await dio
+        .post(
+          '/room/read',
+          data: Map.from({
+            // "column": Null, //
+            // "query": Null,
+            // "order": Null,
+            "offset": data.length,
+            // "limit": Null,
+          }),
+        ) //
+        .then((r) {
+          setState(() {
+            // print(r.data);
+            data.addAll(List<Map<String, dynamic>>.from(r.data));
+            // print(data);
+          });
+        });
+
+    // setState(() {
+    //   data.addAll(
+    //     List<Map<String, dynamic>>.generate(
+    //       100,
+    //       (index) => {
+    //         "_id": {"\$oid": "${data.length + index + 1}"},
+    //         "room_number": "10${data.length + index + 1}",
+    //         "room_type": ["Single", "Double", "Triple", "Quad"][(data.length + index + 1) % 4],
+    //         "ac_or_fan": ["Fan", "AC"][(data.length + index + 1) % 2],
+    //         "capacity": ((data.length + index + 1) % 3) + 1,
+    //         "price": (data.length + index + 1) * 100,
+    //         "status": ["Available", "Occupied", "Maintenance"][(data.length + index + 1) % 3],
+    //         "image_1": "image_1",
+    //         "image_2": "image_2",
+    //         "created_at": "2022-01-0${data.length + index + 1}",
+    //         "updated_at": "2022-01-0${data.length + index + 1}",
+    //         "deleted_at": "2022-01-0${data.length + index + 1}",
+    //       },
+    //     ),
+    //   );
+    // });
   }
 
   double get_width() {
@@ -213,24 +235,37 @@ class _Room_State extends State<Room_> {
           child: Column(
             children: [
               // header
-              if (!is_search)
-                Row(
-                  children: [
-                    Container(
-                      height: header_height, //
-                      width: number_column_width, //
-                      alignment: Alignment.center,
-                      child: Text(
-                        "No.", //
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+              Row(
+                children: [
+                  // number column
+                  Container(
+                    height: header_height, //
+                    width: number_column_width, //
+                    alignment: Alignment.center,
+                    child: Text(
+                      "No.", //
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
+                  ),
+
+                  // filter mode
+                  if (!is_search)
                     ...headers.where((row) => row["visible"]).map((row) {
                       return Container(
                         height: header_height, //
                         width: column_width, //
                         child: InkWell(
-                          onTap: () {},
+                          onTap: () {
+                            setState(() {
+                              if (sort_by == row["key"]) {
+                                sort_order = sort_order_options[(sort_order_options.indexOf(sort_order) + 1) % sort_order_options.length];
+                              } else {
+                                sort_order = sort_order_options.last;
+                              }
+
+                              sort_by = row["key"] as String;
+                            });
+                          },
                           child: Row(
                             children: [
                               Spacer(),
@@ -240,43 +275,24 @@ class _Room_State extends State<Room_> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Spacer(),
-                              Icon(Icons.unfold_more, size: 16), //
+                              sort_by == row["key"]
+                                  ? Icon(
+                                      sort_order == null
+                                          ? Icons.unfold_more
+                                          : sort_order == -1
+                                          ? Icons.arrow_downward_sharp
+                                          : Icons.arrow_upward_sharp,
+                                      size: 20,
+                                    )
+                                  : Icon(Icons.unfold_more, size: 20),
                             ],
                           ),
                         ),
                       );
                     }),
 
-                    if (is_admin)
-                      Container(
-                        height: header_height, //
-                        width: 80, //
-                        child: Row(
-                          children: [
-                            Spacer(),
-                            Text("Actions", style: const TextStyle(fontWeight: FontWeight.bold)),
-                            SizedBox(width: 4), //
-                            Spacer(),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-
-              // search
-              if (is_search)
-                Row(
-                  children: [
-                    Container(
-                      height: header_height, //
-                      width: number_column_width, //
-                      alignment: Alignment.center,
-                      child: Text(
-                        "No.", //
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-
+                  // search mode
+                  if (is_search)
                     ...headers.where((row) => row["visible"]).map((row) {
                       return Container(
                         height: header_height, //
@@ -295,21 +311,22 @@ class _Room_State extends State<Room_> {
                       );
                     }),
 
-                    if (is_admin)
-                      Container(
-                        height: header_height, //
-                        width: 80, //
-                        child: Row(
-                          children: [
-                            Spacer(),
-                            Text("Actions", style: const TextStyle(fontWeight: FontWeight.bold)),
-                            SizedBox(width: 4), //
-                            Spacer(),
-                          ],
-                        ),
+                  // actions column
+                  if (is_admin)
+                    Container(
+                      height: header_height, //
+                      width: 80, //
+                      child: Row(
+                        children: [
+                          Spacer(),
+                          Text("Actions", style: const TextStyle(fontWeight: FontWeight.bold)),
+                          SizedBox(width: 4), //
+                          Spacer(),
+                        ],
                       ),
-                  ],
-                ),
+                    ),
+                ],
+              ),
 
               // body
               Expanded(

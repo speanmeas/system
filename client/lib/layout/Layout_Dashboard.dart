@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:speanmeas/Environment.dart';
 import 'package:speanmeas/page/Dashboard.dart';
 import 'package:speanmeas/layout/Panel_Body.dart';
-import 'package:speanmeas/layout/Panel_Bottom.dart';
+import 'package:speanmeas/layout/.backup/Panel_Bottom.dart';
 import 'package:speanmeas/layout/Panel_Left.dart';
 import 'package:speanmeas/layout/Panel_Top.dart';
 import 'package:speanmeas/layout/Variable.dart';
@@ -73,22 +73,12 @@ class _Layout_Dashboard_State extends State<Layout_Dashboard_> {
                     child: Container(
                       width: double.infinity,
                       height: double.infinity,
-                      // decoration: BoxDecoration(border: Border.all()),
+                      decoration: BoxDecoration(border: Border.all()),
                       child: Panel_Body_(), //
                     ),
                   ),
                 ),
               ],
-            ),
-          ),
-
-          // panel bottom
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
-            child: Container(
-              height: 20,
-              // decoration: BoxDecoration(border: Border.all()), //
-              child: Panel_Bottom_(), //
             ),
           ),
         ],

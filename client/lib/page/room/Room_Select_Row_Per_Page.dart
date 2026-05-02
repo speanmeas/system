@@ -30,7 +30,7 @@ class Room_Select_Row_Per_Page_ extends StatefulWidget {
     required this.input,
   });
 
-  final dynamic input;
+  dynamic input;
 
   @override
   State<Room_Select_Row_Per_Page_> createState() => _Room_Select_Row_Per_Page_State();
@@ -40,12 +40,20 @@ class _Room_Select_Row_Per_Page_State extends State<Room_Select_Row_Per_Page_> {
   //
   //
 
+  late dynamic output;
+
+  @override
+  void initState() {
+    super.initState();
+    output = Map.from(widget.input);
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       contentPadding: EdgeInsets.zero,
       titlePadding: const EdgeInsets.all(4),
-      title: const Row(
+      title: Row(
         children: [
           Spacer(),
           Text(
@@ -56,37 +64,48 @@ class _Room_Select_Row_Per_Page_State extends State<Room_Select_Row_Per_Page_> {
             ),
           ),
           Spacer(),
-          CloseButton(color: Colors.red),
+          OutlinedButton.icon(
+            icon: Icon(Icons.save_outlined),
+            label: Text("Save"),
+            onPressed: () {
+              //
+              print(output);
+            },
+          ),
         ],
       ),
       content: SizedBox(
         width: 600,
         child: ListView.builder(
           shrinkWrap: true,
-          itemCount: widget.input['rowOptions'].length,
+          itemCount: output['rowOptions'].length,
           itemBuilder: (context, index) {
-            final value = widget.input['rowOptions'][index] as int;
-            final isSelected = value == widget.input['rowPerPage'];
+            final value = output['rowOptions'][index] as int;
+            final isSelected = value == output['rowPerPage'];
 
             return InkWell(
               onTap: () {
                 setState(() {
-                  widget.input['rowPerPage'] = value;
-                });
-                // Add small delay to show the tick before closing
-                Future.delayed(const Duration(milliseconds: 200), () {
-                  Navigator.of(context).pop(widget.input);
+                  output['rowPerPage'] = value;
                 });
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : null),
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                // decoration: BoxDecoration(color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : null),
                 child: Row(
                   children: [
-                    Icon(isSelected ? Icons.check : null, color: isSelected ? Theme.of(context).primaryColor : null, size: 20),
-                    const SizedBox(width: 12),
+                    Icon(
+                      isSelected ? Icons.check : null, //
+                      // color: isSelected ? Theme.of(context).primaryColor : null,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
-                      child: Text(value.toString(), style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                      child: Text(
+                        value.toString(), //
+                        style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+                      ),
                     ),
                   ],
                 ),

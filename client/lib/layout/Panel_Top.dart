@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:speanmeas/Environment.dart';
 import 'package:speanmeas/layout/Variable.dart';
@@ -33,6 +34,20 @@ class Panel_Top_ extends StatefulWidget {
 }
 
 class _Panel_Top_State extends State<Panel_Top_> {
+  String VERSION = '0.0.0+0';
+
+  @override
+  void initState() {
+    super.initState();
+    init();
+  }
+
+  void init() async {
+    final info = await PackageInfo.fromPlatform();
+    VERSION = '${info.version}+${info.buildNumber}';
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isMobile = MediaQuery.of(context).size.width < MOBILE_SCREEN_WIDTH;
@@ -45,7 +60,13 @@ class _Panel_Top_State extends State<Panel_Top_> {
         // logo
         SizedBox(width: 32, height: 32, child: Placeholder()), //
         SizedBox(width: 4), //
-        Text("Spean Meas"), //
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Spean Meas"), //
+            Text(VERSION, style: TextStyle(fontSize: 12, color: Colors.blue)), //
+          ],
+        ),
 
         Spacer(),
 
