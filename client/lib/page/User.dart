@@ -101,7 +101,11 @@ class _User_State extends State<User_> {
                   ? SizedBox(
                       height: 32,
                       child: TextField(
-                        decoration: InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8), border: OutlineInputBorder()),
+                        decoration: InputDecoration(
+                          isDense: true, //
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(),
+                        ),
                       ),
                     )
                   : const SizedBox.shrink(),
