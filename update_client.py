@@ -4,8 +4,6 @@ import time
 import paramiko
 from tqdm import tqdm
 
-os.chdir("client")
-
 
 # read pubspec.yaml
 content = ""
@@ -58,7 +56,6 @@ for _ in tqdm(range(100)):
 
 
 # git commit and push
-os.chdir("../")
 os.system("git add .")
 os.system(f'git commit -m "update"')
 os.system("git push")

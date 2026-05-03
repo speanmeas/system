@@ -99,7 +99,7 @@ class _Panel_Top_State extends State<Panel_Top_> {
               border: Border.all(color: Colors.blue, width: 2),
             ),
             child: CircleAvatar(
-              radius: 16,
+              radius: 20,
               backgroundColor: Colors.white,
               child: Text("A"), //
             ),
