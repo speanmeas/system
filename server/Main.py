@@ -20,6 +20,14 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
 # app.include_router(pluto, prefix="/pluto", tags=["PlutoGrid"])
 
 
+@app.post("/signin", deprecated=0)
+async def _(
+    username: str = Form(..., json_schema_extra={"example": ""}),
+    password: str = Form(..., json_schema_extra={"example": ""}),
+):
+    return {"username": username, "password": password}
+
+
 from routers.Room import router as room
 
 app.include_router(room, prefix="/room", tags=["Room"])

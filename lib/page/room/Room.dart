@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:core';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import 'package:speanmeas/Environment.dart';
@@ -51,8 +53,6 @@ class _Room_State extends State<Room_> {
   double column_width = 120.0;
   double number_column_width = 60.0;
 
-  bool is_search = false;
-
   // this header
   List<Map<String, dynamic>> headers = [
     {"key": "_id", "label": "ID", "visible": false},
@@ -64,17 +64,10 @@ class _Room_State extends State<Room_> {
     {"key": "status", "label": "Status", "visible": true},
     // {"key": "image_1", "label": "Image 1", "visible": false},
     // {"key": "image_2", "label": "Image 2", "visible": false},
-    {"key": "created_at", "label": "Created At", "visible": false},
+    {"key": "created_at", "label": "Created At", "visible": true},
     {"key": "updated_at", "label": "Updated At", "visible": false},
     {"key": "deleted_at", "label": "Deleted At", "visible": false},
   ];
-
-  List<Map<String, dynamic>> data = [];
-
-  String? query;
-  String? sort_by;
-  int? sort_order;
-  List<int?> sort_order_options = [-1, null, 1];
 
   @override
   void initState() {
@@ -82,21 +75,33 @@ class _Room_State extends State<Room_> {
     init();
   }
 
+  List<Map<String, dynamic>> data = [];
+
+  bool is_search = false;
+  String? column;
+  String? query;
+
+  /// 0 = no sort, -1 = descending, 1 = ascending
+  int sort_order = 0;
+
+  // static const List<int> _sort_cycle = [-1, 0, 1];
+
   void init() async {
     await dio
         .post(
           '/room/read',
-          data: Map.from({
-            // "column": Null, //
-            // "query": Null,
-            // "order": Null,
-            // "offset": Null,
-            // "limit": Null,
+          data: FormData.fromMap({
+            "key": column, //
+            "query": query,
+            "order": sort_order == 0 ? null : sort_order,
+            "offset": null,
+            "limit": null,
           }),
         ) //
         .then((r) {
           setState(() {
-            // print(r.data);
+            print(r.data.length);
+            has_more = r.data.length == 100;
             data = List<Map<String, dynamic>>.from(r.data);
             // print(data);
           });
@@ -123,12 +128,14 @@ class _Room_State extends State<Room_> {
     // });
   }
 
+  bool has_more = false;
+
   void load_more() async {
     await dio
         .post(
           '/room/read',
-          data: Map.from({
-            // "column": Null, //
+          data: FormData.fromMap({
+            // "key": Null, //
             // "query": Null,
             // "order": Null,
             "offset": data.length,
@@ -140,6 +147,7 @@ class _Room_State extends State<Room_> {
             // print(r.data);
             data.addAll(List<Map<String, dynamic>>.from(r.data));
             // print(data);
+            has_more = r.data.length == 100;
           });
         });
 
@@ -257,15 +265,23 @@ class _Room_State extends State<Room_> {
                         child: InkWell(
                           onTap: () {
                             setState(() {
-                              if (sort_by == row["key"]) {
-                                sort_order = sort_order_options[(sort_order_options.indexOf(sort_order) + 1) % sort_order_options.length];
+                              final is_same_column = column == row["key"];
+
+                              if (is_same_column) {
+                                final current_index = [-1, 0, 1].indexOf(sort_order);
+                                sort_order = [-1, 0, 1][(current_index - 1) % 3];
                               } else {
-                                sort_order = sort_order_options.last;
+                                sort_order = -1;
                               }
 
-                              sort_by = row["key"] as String;
+                              column = sort_order == 0 ? null : row["key"] as String;
+
+                              print("column: $column");
+                              print("sort_order: $sort_order");
+                              init();
                             });
                           },
+
                           child: Row(
                             children: [
                               Spacer(),
@@ -275,16 +291,7 @@ class _Room_State extends State<Room_> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Spacer(),
-                              sort_by == row["key"]
-                                  ? Icon(
-                                      sort_order == null
-                                          ? Icons.unfold_more
-                                          : sort_order == -1
-                                          ? Icons.arrow_downward_sharp
-                                          : Icons.arrow_upward_sharp,
-                                      size: 20,
-                                    )
-                                  : Icon(Icons.unfold_more, size: 20),
+                              column == row["key"] ? Icon(sort_order == -1 ? Icons.arrow_downward : Icons.arrow_upward, size: 20) : const Icon(Icons.unfold_more, size: 20),
                             ],
                           ),
                         ),
@@ -294,6 +301,31 @@ class _Room_State extends State<Room_> {
                   // search mode
                   if (is_search)
                     ...headers.where((row) => row["visible"]).map((row) {
+                      final range = [
+                        "capacity", //
+                        "price", //
+                        "created_at", //
+                        "updated_at", //
+                        "deleted_at", //
+                      ];
+
+                      if (range.contains(row["key"])) {
+                        //  show a button for range selector
+                        return Container(
+                          height: header_height, //
+                          width: column_width, //
+                          padding: const EdgeInsets.fromLTRB(1, 8, 1, 0),
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              // TODO: Implement range selection
+                              print("Range selection for ${row["label"]}");
+                            },
+                            icon: const Icon(Icons.tune),
+                            label: Text(row["label"] as String? ?? ""),
+                          ),
+                        );
+                      }
+
                       return Container(
                         height: header_height, //
                         width: column_width, //
@@ -334,18 +366,29 @@ class _Room_State extends State<Room_> {
                   itemCount: data.length + 1,
                   itemBuilder: (context, index) {
                     if (index == data.length) {
-                      print("Last item");
-                      Future.delayed(const Duration(milliseconds: 300), () {
-                        load_more();
-                      });
-                      return Container(
-                        height: row_height, //
-                        alignment: Alignment.centerLeft,
-                        decoration: const BoxDecoration(
-                          border: Border(top: BorderSide(color: Colors.black12, width: 1)),
-                        ),
-                        child: const Center(child: CircularProgressIndicator()),
-                      );
+                      if (has_more) {
+                        print("Last item");
+                        Future.delayed(const Duration(milliseconds: 300), () {
+                          load_more();
+                        });
+                        return Container(
+                          height: row_height, //
+                          alignment: Alignment.centerLeft,
+                          decoration: const BoxDecoration(
+                            border: Border(top: BorderSide(color: Colors.black12, width: 1)),
+                          ),
+                          child: const Center(child: CircularProgressIndicator()),
+                        );
+                      } else {
+                        return Container(
+                          height: row_height, //
+                          alignment: Alignment.center,
+                          decoration: const BoxDecoration(
+                            border: Border(top: BorderSide(color: Colors.black12, width: 1)),
+                          ),
+                          child: const Center(child: Text("No more data")),
+                        );
+                      }
                     }
                     return InkWell(
                       child: Container(
@@ -378,15 +421,44 @@ class _Room_State extends State<Room_> {
                               }
 
                               if (row["key"] == "price") {
+                                final price = data[index][row["key"]] ?? 0.0;
                                 return Container(
                                   width: column_width, //
                                   alignment: Alignment.center,
                                   child: Text(
-                                    "${data[index][row["key"]].toStringAsFixed(2) ?? "0.00"} \$", //
+                                    "${price.toStringAsFixed(2)} \$", //
                                     overflow: TextOverflow.ellipsis,
                                     maxLines: 2,
                                     softWrap: true,
                                   ),
+                                );
+                              }
+
+                              // Handle MongoDB date format: {"$date": "2024-01-15T10:30:00.000Z"}
+                              if (row["key"] == "created_at" || row["key"] == "updated_at") {
+                                final output = data[index][row["key"]];
+                                String displayText = "-";
+
+                                try {
+                                  String? dateStr;
+                                  if (output is Map && output.containsKey(r"$date")) {
+                                    dateStr = output[r"$date"] as String?;
+                                  } else if (output is String) {
+                                    dateStr = output;
+                                  }
+
+                                  if (dateStr != null) {
+                                    final date = DateTime.parse(dateStr).toLocal();
+                                    displayText = DateFormat('yyyy-MM-dd HH:mm:ss').format(date);
+                                  }
+                                } catch (e) {
+                                  displayText = output?.toString() ?? "-";
+                                }
+
+                                return Container(
+                                  width: column_width,
+                                  alignment: Alignment.center,
+                                  child: Text(displayText, overflow: TextOverflow.ellipsis, maxLines: 2, softWrap: true),
                                 );
                               }
 
